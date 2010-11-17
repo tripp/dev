@@ -1,0 +1,90 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<style>
+/*Supplemental: CSS for the YUI distribution*/
+#custom-doc { width: 95%; min-width: 950px; }
+#pagetitle {background-image: url(../../assets/bg_hd.gif);}
+#mycanvas {
+    margin:10px 10px 10px 10px;
+    padding:10px 10px 10px 10px;
+    width:500px;
+    height:350px;
+}
+</style>
+<link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.1.2/build/cssfonts/fonts-min.css">
+<!-- BEGIN EXAMPLE CODE -->	
+</head>		
+<body class="yui3-skin-sam">
+<!--script type="text/javascript" src="http://yui.yahooapis.com/3.1.2/build/yui/yui.js"></script-->
+<script type="text/javascript" src="http://yui.yahooapis.com/3.2.0/build/yui/yui-min.js"></script>
+<script type="text/javascript" src="../../../build/graphics/graphics.js"></script>
+<div id="outputdiv" style="position:absolute; left:700px"></div>
+<div id="mycanvas"></div>
+<script type="text/javascript">            
+    YUI().use('graphics', function (Y) 
+    {
+        var startX = 20,
+            startY = 20,
+            endX = 180,
+            endY = 200,
+            myline,
+            mousedown = false,
+            mycanvas = new Y.Graphic();
+        mycanvas.render(Y.one("#mycanvas"));
+        myline = mycanvas.getShape();
+        myline.lineStyle(3, "#ff0000");
+        myline.moveTo(startX, startY);
+        myline.lineTo(endX, endY);
+        myline.end();
+       
+        Y.one(myline.node).on("mouseenter", Y.bind(function(e) {
+            myline.setStroke({color:"#0000ff"});
+        }, this));
+        
+        Y.one(myline.node).on("mouseleave", Y.bind(function(e) {
+            if(!mousedown)
+            {
+                myline.setStroke({color:"#ff0000"});
+            }
+        }, this));
+
+        Y.one(myline.node).on("mousedown", Y.bind(function(e) {
+            mousedown = true;
+        }, this));
+
+        Y.one("#mycanvas").on("mouseup", Y.bind(function(e) {
+            mousedown = false;
+            myline.setStroke({color:"#ff0000"});
+        }, this));
+
+        Y.one(myline.node).on("mouseup", Y.bind(function(e) {
+            mousedown = false;
+        }, this));
+
+        Y.one("#mycanvas").on("mousemove", Y.bind(function(e) {
+            if(mousedown)
+            {
+                var container = Y.one("#mycanvas"),
+                    node = Y.one(myline.node),
+                    containerX = container.getX(),
+                    containerY = container.getY(),
+                    nodeX = node.getX(),
+                    nodeY = node.getY(),
+                    offsetX = nodeX - containerX,
+                    offsetY = nodeY - containerY,
+                    x = Math.round(Math.max(0, e.pageX - nodeX)),
+                    y = Math.round(Math.max(0, e.pageY - nodeY)); 
+                myline.clearPath();
+                myline.moveTo(20, 20);
+                myline.lineTo(x, y);
+                myline.lineTo(180, 200);
+                myline.end();
+            }
+        }, this));
+    });
+</script>
+</body>
+</html>
