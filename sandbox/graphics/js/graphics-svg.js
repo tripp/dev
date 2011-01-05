@@ -1,8 +1,7 @@
 /**
- * The Charts widget provides an api for displaying data
- * graphically.
+ * The Graphics widget provides an api for basic drawing operations.
  *
- * @module charts
+ * @module graphics
  */
 var ISCHROME = Y.UA.chrome,
     DRAWINGAPI,
