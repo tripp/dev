@@ -1,17 +1,18 @@
 /**
- * VMLShape is a fallback class for Shape. It creates a graphic object with editable properties when 
- * SVG is not available.
+ * The Shape class creates a graphic object with editable 
+ * properties.
  *
- * @class VMLShape
+ * @class Shape
+ * @extends Graphic
  * @constructor
  */
-function VMLShape(cfg)
+function Shape(cfg)
 {
     this._initialize(cfg);
     this._draw();
 }
 
-VMLShape.prototype = {
+Shape.prototype = {
     /**
      * Indicates the type of shape. 
      *
@@ -252,8 +253,4 @@ VMLShape.prototype = {
     }
 };
 
-Y.VMLShape = VMLShape;
-
-if (DRAWINGAPI == "vml") {
-    Y.Shape = VMLShape;
-}
+Y.Shape = Shape;

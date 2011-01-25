@@ -137,7 +137,4 @@ Y.CanvasGraphic = Y.Base.create("graphic",  Y.CanvasDrawingUtil, [], {
     node: null
 });
 
-if(DRAWINGAPI == "canvas")
-{
-    Y.Graphic = Y.CanvasGraphic;
-}
+Y.Graphic = Y.CanvasGraphic;

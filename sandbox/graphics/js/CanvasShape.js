@@ -2,11 +2,11 @@
  * The Shape class creates a graphic object with editable 
  * properties.
  *
- * @class CanvasShape
- * @extends CanvasGraphic
+ * @class Shape
+ * @extends Graphic
  * @constructor
  */
-function CanvasShape(cfg)
+function Shape(cfg)
 {
     this._dummy = this._createDummy();
     this._canvas = this._createGraphic();
@@ -16,7 +16,7 @@ function CanvasShape(cfg)
     this._validate();
 }
 
-Y.extend(CanvasShape, Y.CanvasDrawingUtil, {
+Y.extend(Shape, Y.DrawingUtil, {
     /**
      * Indicates the type of shape. 
      *
@@ -184,9 +184,4 @@ Y.extend(CanvasShape, Y.CanvasDrawingUtil, {
     }
 });
 
-Y.CanvasShape = CanvasShape;
-
-if(DRAWINGAPI == "canvas")
-{
-    Y.Shape = Y.CanvasShape;
-}
+Y.Shape = Shape;

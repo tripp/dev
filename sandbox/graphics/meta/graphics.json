@@ -1,0 +1,29 @@
+{
+    "graphics": {
+        "requires": ["dom", "event-custom", "event-mouseenter"],
+        "plugins": {
+            "graphics-svg": {
+                "condition": {
+                    "trigger": "graphics",
+                    "test": "graphics-svg.js"
+                },
+                "requires": [
+                    "drawing-svg",
+                    "fill-svg"
+                ]
+            },
+            "graphics-canvas": {
+                "condition": {
+                    "trigger": "graphics",
+                    "test": "graphics-canvas.js"
+                }
+            },
+            "graphics-vml": {
+                "condition": {
+                    "trigger": "graphics",
+                    "test": "graphics-vml.js"
+                }
+            } 
+        }
+    }
+}

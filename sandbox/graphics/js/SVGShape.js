@@ -12,14 +12,14 @@ function Shape(cfg)
     this._draw();
 }
 
-Y.extend(Shape, Y.Graphic, {
+Shape.prototype = {
     /**
      * Indicates the type of shape. 
      *
      * @property type 
      * @type string
      */
-    type: "shape",
+    type: "path",
 
     /**
      * Indicates whether or not the instance will size itself based on its contents.
@@ -94,7 +94,7 @@ Y.extend(Shape, Y.Graphic, {
             fillHeight = this.height || 0;
         if(!this.node)
         {
-            this.node = this._createGraphicNode(this.nodetype, this.pointerEvents);
+            this.node = this.graphics._createGraphicNode(this.nodetype, this.pointerEvents);
             parentNode.appendChild(this.node);
         }
         if(this.type == "wedge")
@@ -129,8 +129,11 @@ Y.extend(Shape, Y.Graphic, {
         {
             this.node.setAttribute("width", fillWidth);
             this.node.setAttribute("height", fillHeight);
-            this.node.style.width = fillWidth + "px";
-            this.node.style.height = fillHeight + "px";
+            if(this.node.style)
+            {
+                this.node.style.width = fillWidth + "px";
+                this.node.style.height = fillHeight + "px";
+            }
         }
         this._addFill();
         parentNode.style.width = this.width + "px";
@@ -193,6 +196,10 @@ Y.extend(Shape, Y.Graphic, {
     _addFill: function()
     {
         var fillAlpha;
+        if(!this.fill)
+        {
+            return;
+        }
         if(this.fill.type === "linear" || this.fill.type === "radial")
         {
             this.beginGradientFill(this.fill);
@@ -329,6 +336,6 @@ Y.extend(Shape, Y.Graphic, {
         circle: "ellipse",
         wedge: "path"
     }
-});
-
+};
+Y.augment(Shape, Y.Fill, Y.Drawing);
 Y.Shape = Shape;
