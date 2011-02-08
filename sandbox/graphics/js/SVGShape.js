@@ -1,341 +1,361 @@
 /**
- * The Shape class creates a graphic object with editable 
- * properties.
+ * Base class for creating shapes.
  *
  * @class Shape
- * @extends Graphic
- * @constructor
  */
-function Shape(cfg)
-{
-    this._initialize(cfg);
-    this._draw();
-}
-
-Shape.prototype = {
+ Y.Shape = Y.Base.create("shape", Y.Base, [Y.Fill], {
     /**
-     * Indicates the type of shape. 
+     * Initializes the shape
      *
-     * @property type 
-     * @type string
-     */
-    type: "path",
-
-    /**
-     * Indicates whether or not the instance will size itself based on its contents.
-     *
-     * @property autoSize 
-     * @type string
-     */
-    autoSize: false,
-
-    /**
-     * Determines whether the instance will receive mouse events.
-     * 
-     * @property pointerEvents
-     * @type string
-     */
-    pointerEvents: "visiblePainted", 
-
-    /**
-     * Initializes the graphic instance.
-     *
+     * @private
      * @method _initialize
-     * @private
      */
-    _initialize: function(cfg) 
+    initializer: function()
     {
-        if(!cfg.graphic)
-        {
-            cfg.graphic = new Y.Graphic();
-        }
-        this._setProps(cfg);
+        this._addListeners();
+        this._draw();
     },
-  
+   
     /**
-     * Updates properties for the shape.
+     * Creates the dom node for the shape.
      *
-     * @method _setProps
-     * @param {Object} cfg Properties to update.
      * @private
+     * @return HTMLElement
      */
-    _setProps: function(cfg)
+    _getNode: function()
     {
-        this.autoSize = cfg.autoSize || this.autoSize; 
-        this.pointerEvents = cfg.pointerEvents || this.pointerEvents;
-        this.width = cfg.width || this.width;
-        this.height = cfg.height || this.height;
-        this.border = cfg.border || this.border;
-        this.graphics = cfg.graphic || this.graphics;
-        this.canvas = this.graphics;
-        this.parentNode = this.graphics.node;
-        this.fill = cfg.fill || this.fill;
-        this.type = cfg.shape || this.type;
-        this.nodetype = this._getNodeShapeType(this.type); 
-        this.props = cfg.props || this.props;
-        this.path = cfg.path || this.path;
+        var node = document.createElementNS("http://www.w3.org/2000/svg", "svg:" + this._type),
+            v = this.get("pointerEvents") || "none";
+        node.setAttribute("pointer-events", v);
+        return node;
     },
 
     /**
-     * Draws the graphic.
+     * Adds change listeners to the shape.
      *
-     * @method _draw
+     * @private
+     * @method _addListeners
+     */
+    _addListeners: function()
+    {
+        this.after("strokeChange", this._updateHandler);
+        this.after("fillChange", this._updateHandler);
+        this.after("widthChange", this._updateHandler);
+        this.after("heightChange", this._updateHandler);
+        this.after("x", this._updateHandler);
+        this.after("y", this._updateHandler);
+    },
+    
+    /**
+     * Adds a stroke to the shape node.
+     *
+     * @method _strokeChangeHandler
+     * @private
+     */
+    _strokeChangeHandler: function(e)
+    {
+        var node = this.get("node"),
+            stroke = this.get("stroke"),
+            strokeAlpha,
+            dashstyle;
+        if(stroke && stroke.weight && stroke.weight > 0)
+        {
+            strokeAlpha = stroke.alpha;
+            dashstyle = stroke.dashstyle || "none";
+            stroke.color = stroke.color || "#000000";
+            stroke.weight = stroke.weight || 1;
+            stroke.alpha = Y.Lang.isNumber(strokeAlpha) ? strokeAlpha : 1;
+            stroke.linecap = stroke.linecap || "square";
+            node.setAttribute("stroke-dasharray", dashstyle);
+            node.setAttribute("stroke", stroke.color);
+            node.setAttribute("stroke-linecap", stroke.linecap);
+            node.setAttribute("stroke-width",  stroke.weight);
+            node.setAttribute("stroke-opacity", stroke.alpha);
+        }
+        else
+        {
+            node.setAttribute("stroke", "none");
+        }
+    },
+    
+    /**
+     * Adds a fill to the shape node.
+     *
+     * @method _fillChangeHandler
+     * @private
+     */
+    _fillChangeHandler: function(e)
+    {
+        var node = this.get("node"),
+            fill = this.get("fill"),
+            fillAlpha;
+        if(fill)
+        {
+            if(fill.type === "linear" || fill.type === "radial")
+            {
+                this.beginGradientFill(fill);
+                //node.appendChild(this._getFill());
+            }
+            else if(fill.type === "bitmap")
+            {
+                this.beginBitmapFill(fill);
+                //node.appendChild(this._getFill());
+            }
+            else
+            {
+                if(!fill.color)
+                {
+                    node.setAttribute("fill", "none");
+                }
+                else
+                {
+                    fillAlpha = fill.alpha; 
+                    fill.alpha = Y.Lang.isNumber(fillAlpha) ? fillAlpha : 1;
+                    node.setAttribute("fill", fill.color);
+                    node.setAttribute("fill-opacity", fillAlpha);
+                }
+            }
+        }
+        else
+        {
+            node.setAttribute("fill", "none");
+        }
+    },
+
+    /**
+     * Applies translate transformation.
+     *
+     * @method translate
+     * @param {Number} x The x-coordinate
+     * @param {Number} y The y-coordinate
+     */
+    translate: function(x, y)
+    {
+        var node = this.get("node"),
+            translate = "translate(" + x + ", " + y + ")",
+            transform = node.getAttribute("transform");
+        //this._updateTransform("translate", /translate\(.*\)/, translate);
+        if(transform && transform.length > 0)
+        {
+            if(transform.indexOf("translate") > -1)
+            {
+                transform = transform.replace(/translate\(.*\)/, translate);
+            }
+            else
+            {
+                transform += " " + translate;
+            }
+        }
+        else
+        {
+            transform = translate;
+        }
+        node.setAttribute("transform", transform);
+    },
+
+    /**
+     * Applies a skew to the x-coordinate
+     *
+     * @method skewX:q
+     * @param {Number} x x-coordinate
+     */
+     skewX: function(x)
+     {
+        var skewX= "skewX(" + x + ")";
+        this._updateTransform("skewX", /skewX\(.*\)/, skewX);
+     },
+
+    /**
+     * Applies a skew to the x-coordinate
+     *
+     * @method skewX:q
+     * @param {Number} x x-coordinate
+     */
+     skewY: function(y)
+     {
+        var skewY = "skewY(" + y + ")";
+        this._updateTransform("skewY", /skewY\(.*\)/, skewY);
+     },
+
+     /**
+      * Applies a rotation.
+      *
+      * @method rotate
+      * @param
+      */
+     rotate: function(deg, translate)
+     {
+        var rotate = "rotate(" + deg + ")";
+        this._updateTransform("rotate", /rotate\(.*\)/, rotate);
+     },
+
+    /**
+     * Applies a scale transform
+     *
+     * @method scale
+     * @param {Number} val
+     */
+    scale: function(val)
+    {
+        var scale = "scale(" + val + ")";
+        this._updateTransform("scale", /scale\(.*\)/, scale);
+    },
+
+    /**
+     * Applies a matrix transformation
+     *
+     * @method matrix
+     */
+    matrix: function(a, b, c, d, e, f)
+    {
+        var matrix = "matrix(" + a + ", " + b + ", " + c + ", " + d + ", " + e + ", " + f + ")";
+        this._updateTransform("matrix", /matrix\(.*\)/, matrix);
+    },
+
+    /**
+     * @private
+     */
+    _updateTransform: function(type, test, val)
+    {
+        var node = this.get("node"),
+            transform = node.getAttribute("transform");
+        if(transform && transform.length > 0)
+        {
+            if(transform.indexOf(type) > -1)
+            {
+                transform = transform.replace(test, val);
+            }
+            else
+            {
+                transform += " " + val;
+            }
+        }
+        else
+        {
+            transform = val;
+        }
+        node.setAttribute("transform", transform);
+    },
+
+    /**
      * @private
      */
     _draw: function()
     {
-        var cx,
-            cy,
-            rx,
-            ry,
-            parentNode = this.parentNode,
-            borderWeight = 0,
-            fillWidth = this.width || 0,
-            fillHeight = this.height || 0;
-        if(!this.node)
-        {
-            this.node = this.graphics._createGraphicNode(this.nodetype, this.pointerEvents);
-            parentNode.appendChild(this.node);
-        }
-        if(this.type == "wedge")
-        {
-            this.path = this._getWedgePath(this.props);
-        }
-        if(this.nodetype == "path")
-        {
-            this._setPath();
-        }
-        if(this.border && this.border.weight && this.border.weight > 0)
-        {
-            borderWeight = this.border.weight;
-            fillWidth -= borderWeight * 2;
-            fillHeight -= borderWeight * 2;
-        }
-        this._addBorder();
-        if(this.nodetype === "ellipse")
-        {
-            rx = this.width/2;
-            cx = this.width/2;
-            ry = this.height/2;
-            cy = this.height/2;
-            rx -= borderWeight;
-            ry -= borderWeight;
-            this.node.setAttribute("cx", cx);
-            this.node.setAttribute("cy", cy);
-            this.node.setAttribute("rx", rx);
-            this.node.setAttribute("ry", ry);
-        }
-        else
-        {
-            this.node.setAttribute("width", fillWidth);
-            this.node.setAttribute("height", fillHeight);
-            if(this.node.style)
-            {
-                this.node.style.width = fillWidth + "px";
-                this.node.style.height = fillHeight + "px";
-            }
-        }
-        this._addFill();
-        parentNode.style.width = this.width + "px";
-        parentNode.style.height = this.height + "px";
-        parentNode.setAttribute("width", this.width);
-        parentNode.setAttribute("height", this.height);
-        this.node.style.visibility = "visible";
-        this.node.setAttribute("x", borderWeight); 
-        this.node.setAttribute("y", borderWeight); 
-        return this;       
+        var node = this.get("node");
+        node.setAttribute("width", this.get("width"));
+        node.setAttribute("height", this.get("height"));
+        this._fillChangeHandler();
+        this._strokeChangeHandler();
     },
 
-    /**
-     * Adds a path to the shape node.
-     * 
-     * @method _setPath
-     * @private
-     */
-    _setPath: function()
+    _updateHandler: function(e)
     {
-        if(this.path)
-        {
-            this.path += " Z";
-            this.node.setAttribute("d", this.path);
-        }
-    },
-
-    /**
-     * Adds a border to the shape node.
-     *
-     * @method _addBorder
-     * @private
-     */
-    _addBorder: function()
-    {
-        if(this.border && this.border.weight && this.border.weight > 0)
-        {
-            var borderAlpha = this.border.alpha;
-            this.border.color = this.border.color || "#000000";
-            this.border.weight = this.border.weight || 1;
-            this.border.alpha = Y.Lang.isNumber(borderAlpha) ? borderAlpha : 1;
-            this.border.linecap = this.border.linecap || "square";
-            this.node.setAttribute("stroke", this.border.color);
-            this.node.setAttribute("stroke-linecap", this.border.linecap);
-            this.node.setAttribute("stroke-width",  this.border.weight);
-            this.node.setAttribute("stroke-opacity", this.border.alpha);
-        }
-        else
-        {
-            this.node.setAttribute("stroke", "none");
-        }
-    },
-
-    /**
-     * Adds a fill to the shape node.
-     *
-     * @method _addFill
-     * @private
-     */
-    _addFill: function()
-    {
-        var fillAlpha;
-        if(!this.fill)
-        {
-            return;
-        }
-        if(this.fill.type === "linear" || this.fill.type === "radial")
-        {
-            this.beginGradientFill(this.fill);
-            this.node.appendChild(this._getFill());
-        }
-        else if(this.fill.type === "bitmap")
-        {
-            this.beginBitmapFill(this.fill);
-            this.node.appendChild(this._getFill());
-        }
-        else
-        {
-            if(!this.fill.color)
-            {
-                this.node.setAttribute("fill", "none");
-            }
-            else
-            {
-                fillAlpha = this.fill.alpha; 
-                this.fill.alpha = Y.Lang.isNumber(fillAlpha) ? fillAlpha : 1;
-                this.node.setAttribute("fill", this.fill.color);
-                this.node.setAttribute("fill-opacity", fillAlpha);
-            }
-        }
-    },
-
-    /**
-     * Completes a drawing operation. 
-     *
-     * @method end
-     */
-    end: function()
-    {
-        this._setPath();
-    },
-
-    /**
-     * Updates the properties of the shape instance.
-     *
-     * @method update
-     * @param {Object} cfg Object literal containing properties to update.
-     */
-    update: function(cfg)
-    {
-        this._setProps(cfg);
         this._draw();
-        return this;
-    },
-    
-    /**
-     * Converts a shape type to the appropriate node attribute.
-     *
-     * @private
-     * @method _getNodeShapeType
-     * @param {String} type The type of shape.
-     * @return String
-     */
-    _getNodeShapeType: function(type)
-    {
-        if(this._typeConversionHash.hasOwnProperty(type))
-        {
-            type = this._typeConversionHash[type];
-        }
-        return type;
-    },
-
-    /**
-     * Sets the visibility of a shape.
-     * 
-     * @method toggleVisible
-     * @param {Boolean} val indicates whether or not the shape is visible.
-     */
-    toggleVisible: function(val)
-    {
-        var visibility = val ? "visible" : "hidden";
-        if(this.node)
-        {
-            this.node.style.visibility = visibility;
-        }
-    },
-
-    /**
-     * Adds a class to the shape's node.
-     *
-     * @method addClass
-     * @param {String} className Name of the class to add.
-     */
-    addClass: function(className)
-    {
-        var node = this.node;
-        if(node)
-        {
-            if(node.className && node.className.baseVal)
-            {
-                node.className.baseVal = Y.Lang.trim([node.className.baseVal, className].join(' '));
-            }
-            else
-            {
-                node.setAttribute("class", className);
-            }
-        }
-    },
-
-    /**
-     * Positions the parent node of the shape.
-     *
-     * @method setPosition
-     * @param {Number}, x The x-coordinate
-     * @param {Number}, y The y-coordinate
-     */
-    setPosition: function(x, y)
-    {
-        var pNode = Y.one(this.parentNode),
-            hotspot = this.hotspot;
-        pNode.setStyle("position", "absolute");
-        pNode.setStyle("left", x);
-        pNode.setStyle("top", y);
-        if(hotspot)
-        {
-            hotspot.setStyle("position", "absolute");
-            hotspot.setStyle("left", x);
-            hotspot.setStyle("top", y);
-        }
-    },
-
-    /**
-     * Used to convert shape declarations to the appropriate node type.
-     *
-     * @property _typeConversionHash
-     * @type Object
-     * @private
-     */
-    _typeConversionHash: {
-        circle: "ellipse",
-        wedge: "path"
     }
-};
-Y.augment(Shape, Y.Fill, Y.Drawing);
-Y.Shape = Shape;
+ }, {
+    ATTRS: {
+        /**
+         * Dom node of the shape
+         *
+         * @attribute node
+         * @type HTMLElement
+         * @readOnly
+         */
+        node: {
+            readOnly: true,
+
+            valueFn: "_getNode" 
+        },
+
+        x: {},
+
+        y: {},
+
+        /**
+         * 
+         * @attribute width
+         */
+        width: {},
+
+        /**
+         * 
+         * @attribute height
+         */
+        height: {},
+
+        /**
+         * Indicates whether the shape is visible.
+         *
+         * @attribute visible
+         * @type Boolean
+         */
+        visible: {
+            value: true,
+
+            setter: function(val){
+                var visibility = val ? "visible" : "hidden";
+                this.get("node").style.visibility = visibility;
+                return val;
+            }
+        },
+
+        /**
+         * Contains information about the fill of the shape.
+         *
+         * @attribute fill
+         * @type Object
+         */
+        fill: {
+            setter: function(val)
+            {
+                var tmpl = this.get("fill") || this._getAttrCfg("fill").defaultValue;
+                return (val) ? Y.merge(tmpl, val) : null;
+            }
+        },
+
+        /**
+         * Contains information about the stroke of the shape.
+         *
+         * @attribute stroke
+         * @type Object
+         */
+        stroke: {
+            valueFn: function() {
+                return {
+                    weight: 1,
+                    dashstyle: null,
+                    color: "#000",
+                    alpha: 1.0
+                };
+            },
+
+            setter: function(val)
+            {
+                var tmpl = this.get("stroke") || this._getAttrCfg("stroke").defaultValue;
+                return (val) ? Y.merge(tmpl, val) : null;
+            }
+        },
+        
+        /**
+         * Indicates whether or not the instance will size itself based on its contents.
+         *
+         * @attribute autoSize 
+         * @type Boolean
+         */
+        autoSize: {
+            value: false
+        },
+
+        /**
+         * Determines whether the instance will receive mouse events.
+         * 
+         * @attribute pointerEvents
+         * @type string
+         */
+        pointerEvents: {
+            value: "visiblePainted"
+        }
+    }
+});
+

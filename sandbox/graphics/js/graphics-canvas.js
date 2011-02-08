@@ -1,11 +1,63 @@
 /**
- * CanvasGraphics is a fallback drawing api used for basic drawing operations when SVG is not available.
+ * Graphic is a simple drawing api that allows for basic drawing operations.
  *
- * @class CanvasGraphics
+ * @class Graphic
  * @constructor
  */
-Y.CanvasGraphic = Y.Base.create("graphic",  Y.CanvasDrawingUtil, [], {
+function Graphic(config) {
+    
+    this.initializer.apply(this, arguments);
+}
+
+Graphic.prototype = {
+    /**
+     * Indicates whether or not the instance will size itself based on its contents.
+     *
+     * @property autoSize 
+     * @type String
+     */
     autoSize: true,
+    
+    /**
+     * Initializes the class.
+     *
+     * @method initializer
+     * @private
+     */
+    initializer: function(config) {
+        config = config || {};
+        var w = config.width || 0,
+            h = config.height || 0;
+        this.node = Y.config.doc.createElement('div');
+        this.setSize(w, h);
+        if(config.render)
+        {
+            this.render(config.render);
+        }
+    },
+
+    /**
+     * Sets the size of the graphics object.
+     * 
+     * @method setSize
+     * @param w {Number} width to set for the instance.
+     * @param h {Number} height to set for the instance.
+     */
+    setSize: function(w, h) {
+        if(this.autoSize)
+        {
+            if(w > this.node.getAttribute("width"))
+            {
+                this.node.style.width = w + "px";
+                this.node.setAttribute("width", w);
+            }
+            if(h > this.node.getAttribute("height"))
+            {
+                this.node.style.height = h + "px";
+                this.node.setAttribute("height", h);
+            }
+        }
+    },
 
     /**
      * Updates the size of the graphics object
@@ -44,22 +96,19 @@ Y.CanvasGraphic = Y.Base.create("graphic",  Y.CanvasDrawingUtil, [], {
      * @method render
      * @param {HTMLElement} parentNode node in which to render the graphics node into.
      */
-    render: function(node) {
-        node = node || Y.config.doc.body;
-        this.node = document.createElement("div");
-        this.node.style.width = node.offsetWidth + "px";
-        this.node.style.height = node.offsetHeight + "px";
-        this.node.style.display = "block";
-        this.node.style.position = "absolute";
-        this.node.style.left = node.getStyle("left");
-        this.node.style.top = node.getStyle("top");
-        this.node.style.pointerEvents = "none";
-        node.appendChild(this.node);
-        this.node.appendChild(this._canvas);
-        this._canvas.width = node.offsetWidth > 0 ? node.offsetWidth : 1;
-        this._canvas.height = node.offsetHeight > 0 ? node.offsetHeight : 1;
-        this._canvas.style.position = "absolute";
-
+    render: function(render) {
+        var node = this.node,
+            parentNode = Y.one(render),
+            w = parentNode.get("width") || parentNode.get("offsetWidth"),
+            h = parentNode.get("height") || parentNode.get("offsetHeight");
+        node.style.display = "block";
+        node.style.position = "absolute";
+        node.style.left = Y.one(node).getStyle("left");
+        node.style.top = Y.one(node).getStyle("top");
+        node.style.pointerEvents = "visiblePainted";
+        parentNode = parentNode || Y.config.doc.body;
+        parentNode.appendChild(this.node);
+        this.setSize(w, h);
         return this;
     },
     
@@ -75,24 +124,16 @@ Y.CanvasGraphic = Y.Base.create("graphic",  Y.CanvasDrawingUtil, [], {
     },
 
     /**
-     * Creates a graphic node
-     *
-     * @method _createGraphicNode
-     * @param {String} type node type to create
-     * @param {String} pe specified pointer-events value
-     * @return HTMLElement
-     * @private
      */
-    _createGraphicNode: function(pe)
+    addShape: function(shape)
     {
-        var node = Y.config.doc.createElement('canvas');
-        node.style.pointerEvents = pe || "none";
+        var node = shape.get("node");
+        this.node.appendChild(node);
         if(!this._graphicsList)
         {
             this._graphicsList = [];
         }
         this._graphicsList.push(node);
-        return node;
     },
 
     /**
@@ -128,13 +169,7 @@ Y.CanvasGraphic = Y.Base.create("graphic",  Y.CanvasDrawingUtil, [], {
                 node.removeChild(child);
             }
         }
-    },
+    }
+};
 
-    /**
-     * @private
-     * Reference to the node for the graphics object
-     */
-    node: null
-});
-
-Y.Graphic = Y.CanvasGraphic;
+Y.Graphic = Graphic;

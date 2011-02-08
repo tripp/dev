@@ -4,10 +4,10 @@
  * @class Graphic
  * @constructor
  */
-var Graphic = function(config) {
+function Graphic(config) {
     
     this.initializer.apply(this, arguments);
-};
+}
 
 Graphic.prototype = {
     /**
@@ -28,17 +28,12 @@ Graphic.prototype = {
         config = config || {};
         var w = config.width || 0,
             h = config.height || 0;
-        if(config.node)
+        this.node = this._createGraphics();
+        this.setSize(w, h);
+        if(config.render)
         {
-            this.node = config.node;
-            this._styleGroup(this.node);
+            this.render(config.render);
         }
-        else
-        {
-            this.node = this._createGraphics();
-            this.setSize(w, h);
-        }
-        this._initProps();
     },
 
     /**
@@ -125,409 +120,6 @@ Graphic.prototype = {
                 this.node.removeChild(this._graphicsList.shift());
             }
         }
-        this.path = '';
-    },
-
-    /**
-     * Draws a bezier curve.
-     *
-     * @method curveTo
-     * @param {Number} cp1x x-coordinate for the first control point.
-     * @param {Number} cp1y y-coordinate for the first control point.
-     * @param {Number} cp2x x-coordinate for the second control point.
-     * @param {Number} cp2y y-coordinate for the second control point.
-     * @param {Number} x x-coordinate for the end point.
-     * @param {Number} y y-coordinate for the end point.
-     */
-    curveTo: function(cp1x, cp1y, cp2x, cp2y, x, y) {
-        this._shapeType = "path";
-        var pathArrayLen,
-            currentArray,
-            hiX,
-            loX,
-            hiY,
-            loY;
-        if(this._pathType !== "C")
-        {
-            this._pathType = "C";
-            //this.path += ' C';
-            currentArray = ["C"];
-            this._pathArray.push(currentArray);
-        }
-        else
-        {
-            currentArray = this._pathArray[Math.max(0, this._pathArray.length - 1)];
-            if(!currentArray)
-            {
-                currentArray = [];
-                this._pathArray.push(currentArray);
-            }
-        }
-        pathArrayLen = this._pathArray.length - 1;
-        this._pathArray[pathArrayLen] = this._pathArray[pathArrayLen].concat([Math.round(cp1x), Math.round(cp1y), Math.round(cp2x) , Math.round(cp2y), x, y]);
-        hiX = Math.max(x, Math.max(cp1x, cp2x));
-        hiY = Math.max(y, Math.max(cp1y, cp2y));
-        loX = Math.min(x, Math.min(cp1x, cp2x));
-        loY = Math.min(y, Math.min(cp1y, cp2y));
-        this._trackSize(hiX, hiY);
-        this._trackSize(loX, loY);
-    },
-
-    /**
-     * Draws a quadratic bezier curve.
-     *
-     * @method quadraticCurveTo
-     * @param {Number} cpx x-coordinate for the control point.
-     * @param {Number} cpy y-coordinate for the control point.
-     * @param {Number} x x-coordinate for the end point.
-     * @param {Number} y y-coordinate for the end point.
-     */
-    quadraticCurveTo: function(cpx, cpy, x, y) {
-        var pathArrayLen,
-            currentArray,
-            hiX,
-            loX,
-            hiY,
-            loY;
-        if(this._pathType !== "Q")
-        {
-            this._pathType = "Q";
-            currentArray = ["Q"];
-            this._pathArray.push(currentArray);
-        }
-        else
-        {
-            currentArray = this._pathArray[Math.max(0, this._pathArray.length - 1)];
-            if(!currentArray)
-            {
-                currentArray = [];
-                this._pathArray.push(currentArray);
-            }
-        }
-        pathArrayLen = this._pathArray.length - 1;
-        this._pathArray[pathArrayLen] = this._pathArray[pathArrayLen].concat([Math.round(cpx), Math.round(cpy), Math.round(x), Math.round(y)]);
-        hiX = Math.max(x, cpx);
-        hiY = Math.max(y, cpy);
-        loX = Math.min(x, cpx);
-        loY = Math.min(y, cpy);
-        this._trackSize(hiX, hiY);
-        this._trackSize(loX, loY);
-    },
-
-    /**
-     * Draws a circle.
-     *
-     * @method drawCircle
-     * @param {Number} x y-coordinate
-     * @param {Number} y x-coordinate
-     * @param {Number} r radius
-     */
-	drawCircle: function(x, y, r) {
-        this._shape = {
-            x:x - r,
-            y:y - r,
-            w:r * 2,
-            h:r * 2
-        };
-        this._attributes = {cx:x, cy:y, r:r};
-        this._width = this._height = r * 2;
-        this._x = x - r;
-        this._y = y - r;
-        this._shapeType = "circle";
-        this._draw();
-	},
-
-    /**
-     * Draws an ellipse.
-     *
-     * @method drawEllipse
-     * @param {Number} x x-coordinate
-     * @param {Number} y y-coordinate
-     * @param {Number} w width
-     * @param {Number} h height
-     */
-    drawEllipse: function(x, y, w, h) {
-        this._shape = {
-            x:x,
-            y:y,
-            w:w,
-            h:h
-        };
-        this._width = w;
-        this._height = h;
-        this._x = x;
-        this._y = y;
-        this._shapeType = "ellipse";
-        this._draw();
-    },
-
-    /**
-     * Draws a rectangle.
-     *
-     * @method drawRect
-     * @param {Number} x x-coordinate
-     * @param {Number} y y-coordinate
-     * @param {Number} w width
-     * @param {Number} h height
-     */
-    drawRect: function(x, y, w, h) {
-        this._shape = {
-            x:x,
-            y:y,
-            w:w,
-            h:h
-        };
-        this._x = x;
-        this._y = y;
-        this._width = w;
-        this._height = h;
-        this.moveTo(x, y);
-        this.lineTo(x + w, y);
-        this.lineTo(x + w, y + h);
-        this.lineTo(x, y + h);
-        this.lineTo(x, y);
-        this._draw();
-    },
-
-    /**
-     * Draws a rectangle with rounded corners.
-     * 
-     * @method drawRect
-     * @param {Number} x x-coordinate
-     * @param {Number} y y-coordinate
-     * @param {Number} w width
-     * @param {Number} h height
-     * @param {Number} ew width of the ellipse used to draw the rounded corners
-     * @param {Number} eh height of the ellipse used to draw the rounded corners
-     */
-    drawRoundRect: function(x, y, w, h, ew, eh) {
-        this._shape = {
-            x:x,
-            y:y,
-            w:w,
-            h:h
-        };
-        this._x = x;
-        this._y = y;
-        this._width = w;
-        this._height = h;
-        this.moveTo(x, y + eh);
-        this.lineTo(x, y + h - eh);
-        this.quadraticCurveTo(x, y + h, x + ew, y + h);
-        this.lineTo(x + w - ew, y + h);
-        this.quadraticCurveTo(x + w, y + h, x + w, y + h - eh);
-        this.lineTo(x + w, y + eh);
-        this.quadraticCurveTo(x + w, y, x + w - ew, y);
-        this.lineTo(x + ew, y);
-        this.quadraticCurveTo(x, y, x, y + eh);
-        this._draw();
-	},
-
-    /**
-     * Draws a wedge.
-     * 
-     * @param {Number} x			x-coordinate of the wedge's center point
-     * @param {Number} y			y-coordinate of the wedge's center point
-     * @param {Number} startAngle	starting angle in degrees
-     * @param {Number} arc			sweep of the wedge. Negative values draw clockwise.
-     * @param {Number} radius		radius of wedge. If [optional] yRadius is defined, then radius is the x radius.
-     * @param {Number} yRadius		[optional] y radius for wedge.
-     */
-    drawWedge: function(x, y, startAngle, arc, radius, yRadius)
-    {
-        this._drawingComplete = false;
-        this.path = this._getWedgePath({x:x, y:y, startAngle:startAngle, arc:arc, radius:radius, yRadius:yRadius});
-        this._width = radius * 2;
-        this._height = this._width;
-        this._shapeType = "path";
-        this._draw();
-
-    },
-
-    /**
-     * Completes a drawing operation. 
-     *
-     * @method end
-     */
-    end: function() {
-        if(this._shapeType)
-        {
-            this._draw();
-        }
-        this._initProps();
-    },
-
-    /**
-     * Specifies a gradient to use for the stroke when drawing lines.
-     * Not implemented
-     *
-     * @method lineGradientStyle
-     * @private
-     */
-    lineGradientStyle: function() {
-        Y.log('lineGradientStyle not implemented', 'warn', 'graphics-canvas');
-    },
-     
-    /**
-     * Specifies a line style used for subsequent calls to drawing methods.
-     * 
-     * @method lineStyle
-     * @param {Number} thickness indicates the thickness of the line
-     * @param {String} color hex color value for the line
-     * @param {Number} alpha Value between 0 and 1 used to specify the opacity of the fill.
-     */
-    lineStyle: function(thickness, color, alpha, dashstyle, pixelHinting, scaleMode, caps, joints, miterLimit) {
-        this._stroke = 1;
-        this._strokeWeight = thickness;
-        if (color) {
-            this._strokeColor = color;
-        }
-        if(dashstyle)
-        {
-            this._dashstyle = dashstyle.toString();
-        }
-        this._strokeAlpha = Y.Lang.isNumber(alpha) ? alpha : 1;
-    },
-    
-    /**
-     * Draws a line segment using the current line style from the current drawing position to the specified x and y coordinates.
-     * 
-     * @method lineTo
-     * @param {Number} point1 x-coordinate for the end point.
-     * @param {Number} point2 y-coordinate for the end point.
-     */
-    lineTo: function(point1, point2, etc) {
-        var args = arguments,
-            i,
-            len,
-            pathArrayLen,
-            currentArray;
-        if (typeof point1 === 'string' || typeof point1 === 'number') {
-            args = [[point1, point2]];
-        }
-        len = args.length;
-        this._shapeType = "path";
-        if(this._pathType !== "L")
-        {
-            this._pathType = "L";
-            currentArray = ['L'];
-            this._pathArray.push(currentArray);
-        }
-        else
-        {
-            currentArray = this._pathArray[Math.max(0, this._pathArray.length - 1)];
-            if(!currentArray)
-            {
-                currentArray = [];
-                this._pathArray.push(currentArray);
-            }
-        }
-        pathArrayLen = this._pathArray.length - 1;
-        for (i = 0; i < len; ++i) {
-            this._pathArray[pathArrayLen] = this._pathArray[pathArrayLen].concat([args[i][0], args[i][1]]);
-            this._trackSize.apply(this, args[i]);
-        }
-    },
-
-    /**
-     * Moves the current drawing position to specified x and y coordinates.
-     *
-     * @method moveTo
-     * @param {Number} x x-coordinate for the end point.
-     * @param {Number} y y-coordinate for the end point.
-     */
-    moveTo: function(x, y) {
-        var pathArrayLen,
-            currentArray;
-        if(this._pathType != "M")
-        {
-            this._pathType = "M";
-            currentArray = ["M"];
-            this._pathArray.push(currentArray);
-        }
-        else
-        {
-            currentArray = this._pathArray[Math.max(0, this._pathArray.length - 1)];
-            if(!currentArray)
-            {
-                currentArray = [];
-                this._pathArray.push(currentArray);
-            }
-        }
-        pathArrayLen = this._pathArray.length - 1;
-        this._pathArray[pathArrayLen] = this._pathArray[pathArrayLen].concat([x, y]);
-        this._trackSize(x, y);
-    },
-
-    /**
-     * Generates a path string for a wedge shape
-     *
-     * @method _getWedgePath
-     * @param {Object} config attributes used to create the path
-     * @return String
-     * @private
-     */
-    _getWedgePath: function(config)
-    {
-        var x = config.x,
-            y = config.y,
-            startAngle = config.startAngle,
-            arc = config.arc,
-            radius = config.radius,
-            yRadius = config.yRadius || radius,
-            segs,
-            segAngle,
-            theta,
-            angle,
-            angleMid,
-            ax,
-            ay,
-            bx,
-            by,
-            cx,
-            cy,
-            i = 0,
-            path = ' M' + x + ', ' + y;  
-        
-        // limit sweep to reasonable numbers
-        if(Math.abs(arc) > 360)
-        {
-            arc = 360;
-        }
-        
-        // First we calculate how many segments are needed
-        // for a smooth arc.
-        segs = Math.ceil(Math.abs(arc) / 45);
-        
-        // Now calculate the sweep of each segment.
-        segAngle = arc / segs;
-        
-        // The math requires radians rather than degrees. To convert from degrees
-        // use the formula (degrees/180)*Math.PI to get radians.
-        theta = -(segAngle / 180) * Math.PI;
-        
-        // convert angle startAngle to radians
-        angle = (startAngle / 180) * Math.PI;
-        if(segs > 0)
-        {
-            // draw a line from the center to the start of the curve
-            ax = x + Math.cos(startAngle / 180 * Math.PI) * radius;
-            ay = y + Math.sin(startAngle / 180 * Math.PI) * yRadius;
-            path += " L" + Math.round(ax) + ", " +  Math.round(ay);
-            path += " Q";
-            for(; i < segs; ++i)
-            {
-                angle += theta;
-                angleMid = angle - (theta / 2);
-                bx = x + Math.cos(angle) * radius;
-                by = y + Math.sin(angle) * yRadius;
-                cx = x + Math.cos(angleMid) * (radius / Math.cos(theta / 2));
-                cy = y + Math.sin(angleMid) * (yRadius / Math.cos(theta / 2));
-                path +=  Math.round(cx) + " " + Math.round(cy) + " " + Math.round(bx) + " " + Math.round(by) + " ";
-            }
-            path += ' L' + x + ", " + y;
-        }
-        return path;
     },
 
     /**
@@ -583,190 +175,19 @@ Graphic.prototype = {
     },
 
     /**
-     * Sets the positon of the graphics object.
-     *
-     * @method setPosition
-     * @param {Number} x x-coordinate for the object.
-     * @param {Number} y y-coordinate for the object.
-     */
-    setPosition: function(x, y)
-    {
-        this.node.setAttribute("x", x);
-        this.node.setAttribute("y", y);
-    },
-
-    /**
      * Adds the graphics node to the dom.
      * 
      * @method render
      * @param {HTMLElement} parentNode node in which to render the graphics node into.
      */
-    render: function(parentNode) {
-        var w = parentNode.get("width") || parentNode.get("offsetWidth"),
+    render: function(render) {
+        var parentNode = Y.one(render),
+            w = parentNode.get("width") || parentNode.get("offsetWidth"),
             h = parentNode.get("height") || parentNode.get("offsetHeight");
         parentNode = parentNode || Y.config.doc.body;
         parentNode.appendChild(this.node);
         this.setSize(w, h);
-        this._initProps();
         return this;
-    },
-
-    /**
-     * Clears the properties
-     *
-     * @method _initProps
-     * @private
-     */
-    _initProps: function() {
-        this._shape = null;
-        this._fillColor = null;
-        this._strokeColor = null;
-        this._strokeWeight = 0;
-        this._fillProps = null;
-        this._fillAlphas = null;
-        this._fillColors = null;
-        this._fillType =  null;
-        this._fillRatios = null;
-        this._fillRotation = null;
-        this._fillWidth = null;
-        this._fillHeight = null;
-        this._fillX = NaN;
-        this._fillY = NaN;
-        this.path = '';
-        this._width = 0;
-        this._height = 0;
-        this._left = 0;
-        this._top = 0;
-        this._bottom = 0;
-        this._right = 0;
-        this._x = 0;
-        this._y = 0;
-        this._fill = null;
-        this._stroke = 0;
-        this._stroked = false;
-        this._pathType = null;
-        this._attributes = {};
-        this._pathArray = [];
-    },
-
-    /**
-     * Clears path properties
-     * 
-     * @method _clearPath
-     * @private
-     */
-    _clearPath: function()
-    {
-        this._shape = null;
-        this._shapeType = null;
-        this.path = '';
-        this._width = 0;
-        this._height = 0;
-        this._x = 0;
-        this._y = 0;
-        this._pathType = null;
-        this._attributes = {};
-    },
-
-    /**
-     * Completes a shape
-     *
-     * @method _draw
-     * @private 
-     */
-    _draw: function()
-    {
-        var shape = this._createGraphicNode(this._shapeType, "visiblePainted"),
-            i,
-            gradFill,
-            pathArray = this._pathArray,
-            segmentArray,
-            pathType,
-            len,
-            val,
-            val2,
-            mod;
-        if(this._shapeType == "path")
-        {
-            this.path = "";
-            while(pathArray && pathArray.length > 0)
-            {
-                segmentArray = pathArray.shift();
-                len = segmentArray.length;
-                pathType = segmentArray[0];
-                this.path += " " + pathType + (segmentArray[1] - this._left);
-                switch(pathType)
-                {
-                    case "L" :
-                    case "M" :
-                        for(i = 2; i < len; ++i)
-                        {
-                            val = (i % 2 === 0) ? this._top : this._left;
-                            val = segmentArray[i] - val;
-                            this.path += ", " + val;
-                        }
-                    break;
-                    case "Q" :
-                    case "C" :
-                        for(i = 2; i < len; ++i)
-                        {
-                            val = (i % 2 === 0) ? this._top : this._left;
-                            val2 = segmentArray[i];
-                            val2 -= val;
-                            this.path += " " + val2;
-                        }
-                    break;
-
-                }
-            }
-            if(this._fill)
-            {
-                this.path += 'z';
-            }
-            shape.setAttribute("d", this.path);
-        }
-        else
-        {
-            for(i in this._attributes)
-            {
-                if(this._attributes.hasOwnProperty(i))
-                {
-                    shape.setAttribute(i, this._attributes[i]);
-                }
-            }
-        }
-        shape.setAttribute("stroke-width",  this._strokeWeight);
-        if(this._strokeColor)
-        {
-            shape.setAttribute("stroke", this._strokeColor);
-            shape.setAttribute("stroke-opacity", this._strokeAlpha);
-        }
-        if(this._dashstyle)
-        {
-            shape.setAttribute("stroke-dasharray", this._dashstyle);
-        }
-        if(!this._fillType || this._fillType === "solid")
-        {
-            if(this._fillColor)
-            {
-               shape.setAttribute("fill", this._fillColor);
-               shape.setAttribute("fill-opacity", this._fillAlpha);
-            }
-            else
-            {
-                shape.setAttribute("fill", "none");
-            }
-        }
-        else if(this._fillType === "linear")
-        {
-            gradFill = this._getFill();
-            gradFill.setAttribute("id", this._gradientId);
-            this._defs.appendChild(gradFill);
-            shape.setAttribute("fill", "url(#" + this._gradientId + ")");
-
-        }
-        this.node.appendChild(shape);
-        this._clearPath();
     },
 
     /**
@@ -792,6 +213,8 @@ Graphic.prototype = {
         group.style.position = "absolute";
         group.style.top = "0px";
         group.style.left = "0px";
+        group.style.overflow = "auto";
+        group.setAttribute("overflow", "auto");
         group.setAttribute("pointer-events", "none");
     },
 
@@ -812,31 +235,19 @@ Graphic.prototype = {
         {
             node.setAttribute("pointer-events", v);
         }
-        if(type != "svg")
-        {
-            if(!this._graphicsList)
-            {
-                this._graphicsList = [];
-            }
-            this._graphicsList.push(node);
-        }
         return node;
     },
 
-    /**
-     * Creates a Shape instance and adds it to the graphics object.
-     *
-     * @method getShape
-     * @param {Object} config Object literal of properties used to construct a Shape.
-     * @return Shape
-     */
-    getShape: function(config) {
-        config = config || {};
-        config.graphic = this;
-        return new Y.Shape(config); 
+    addShape: function(shape)
+    {
+        var node = shape.get("node");
+        this.node.appendChild(node);
+        if(!this._graphicsList)
+        {
+            this._graphicsList = [];
+        }
+        this._graphicsList.push(node);
     }
-
 };
-Y.augment(Graphic, Y.Fill, Y.Drawing);
 Y.Graphic = Graphic;
 

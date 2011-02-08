@@ -1,15 +1,74 @@
+
+var _dummy;
+/**
+ * Creates dom element used for converting color string to rgb
+ *
+ * @method _createDummy
+ * @private
+ */
+function _createDummy() 
+{
+    if(!_dummy)
+    {
+        _dummy = Y.config.doc.createElement('div');
+    }
+    _dummy.style.height = 0;
+    _dummy.style.width = 0;
+    _dummy.style.overflow = 'hidden';
+    Y.config.doc.documentElement.appendChild(_dummy);
+    return _dummy;
+}
+
+
 /**
  * Set of drawing apis for canvas based classes.
  *
- * @class DrawingUtil
+ * @class Drawing
  * @constructor
  */
-function DrawingUtil()
+function Drawing()
 {
-    this.initializer.apply(this, arguments);
 }
 
-DrawingUtil.prototype = {
+Drawing.prototype = {
+    /**
+     * Regex expression used for converting hex strings to rgb
+     *
+     * @property _reHex
+     * @private
+     */
+    _reHex: /^#?([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})$/i,
+
+    /**
+     * Parses hex color string and alpha value to rgba
+     *
+     * @method _2RGBA
+     * @private
+     */
+    _2RGBA: function(val, alpha) {
+        alpha = (alpha !== undefined) ? alpha : 1;
+        if (this._reHex.exec(val)) {
+            val = 'rgba(' + [
+                parseInt(RegExp.$1, 16),
+                parseInt(RegExp.$2, 16),
+                parseInt(RegExp.$3, 16)
+            ].join(',') + ',' + alpha + ')';
+        }
+        return val;
+    },
+
+    /**
+     * Converts color to rgb format
+     *
+     * @method _2RGB
+     * @private 
+     */
+    _2RGB: function(val) {
+        var dummy = _createDummy();
+        dummy.style.background = val;
+        return dummy.style.backgroundColor;
+    },
+
     /**
      * Sets the size of the graphics object.
      * 
@@ -18,20 +77,16 @@ DrawingUtil.prototype = {
      * @param h {Number} height to set for the instance.
      */
     setSize: function(w, h) {
-        if(this.autoSize)
+        if(this.get("autoSize"))
         {
             if(w > this.node.getAttribute("width"))
             {
                 this.node.style.width = w + "px";
-                this._canvas.style.width = w + "px";
-                this._canvas.width = w;
                 this.node.setAttribute("width", w);
             }
             if(h > this.node.getAttribute("height"))
             {
                 this.node.style.height = h + "px";
-                this._canvas.style.height = h + "px";
-                this._canvas.height = h;
                 this.node.setAttribute("height", h);
             }
         }
@@ -39,6 +94,7 @@ DrawingUtil.prototype = {
 
     _updatePosition: function(x, y)
     {
+        this._updateCoords(x, y);
         if(x <= this._left)
         {
             this._left = x;
@@ -58,20 +114,30 @@ DrawingUtil.prototype = {
         this._width = this._right - this._left;
         this._height = this._bottom - this._top;
     },
-
-    /**
-     * Initializes the class.
-     *
-     * @method initializer
-     * @private
-     */
-    initializer: function(config) {
-        this._dummy = this._createDummy();
-        this._canvas = this._createGraphic();
-        this._context = this._canvas.getContext('2d');
-        this._initProps();
-    },
     
+    _updateCoords: function(x, y)
+    {
+        this._xcoords.push(x);
+        this._ycoords.push(y);
+    },
+
+    _clearAndUpdateCoords: function()
+    {
+        var x = this._xcoords.pop() || 0,
+            y = this._ycoords.pop() || 0;
+        this._updateCoords(x, y);
+    },
+
+    _updateNodePosition: function()
+    {
+        var node = this.get("node"),
+            x = this.get("x"),
+            y = this.get("y"); 
+        node.style.position = "absolute";
+        node.style.left = (x + this._left) + "px";
+        node.style.top = (y + this._top) + "px";
+    },
+
     /**
      * Holds queue of methods for the target canvas.
      * 
@@ -101,132 +167,7 @@ DrawingUtil.prototype = {
         }
         this._methods.push(val);
     },
- 
-    /** 
-     * Specifies a bitmap fill used by subsequent calls to other drawing methods.
-     * 
-     * @method beginBitmapFill
-     * @param {Object} config
-     */
-    beginBitmapFill: function(config) {
-        var context = this._context,
-            bitmap = config.bitmap,
-            repeat = config.repeat || 'repeat';
-        this._fillWidth = config.width || null;
-        this._fillHeight = config.height || null;
-        this._fillX = !isNaN(config.tx) ? config.tx : NaN;
-        this._fillY = !isNaN(config.ty) ? config.ty : NaN;
-        this._fillType =  'bitmap';
-        this._bitmapFill = context.createPattern(bitmap, repeat);
-        return this;
-    },
-
-    /**
-     * Specifes a solid fill used by subsequent calls to other drawing methods.
-     *
-     * @method beginFill
-     * @param {String} color Hex color value for the fill.
-     * @param {Number} alpha Value between 0 and 1 used to specify the opacity of the fill.
-     */
-    beginFill: function(color, alpha) {
-        var context = this._context;
-        this._updateDrawingQueue(["beginPath"]);
-        if (color) {
-            if (alpha) {
-               color = this._2RGBA(color, alpha);
-            } else {
-                color = this._2RGB(color);
-            }
-
-            this._fillColor = color;
-            this._fillType = 'solid';
-        }
-        return this;
-    },
-
-    /** 
-     * Specifies a gradient fill used by subsequent calls to other drawing methods.
-     *
-     * @method beginGradientFill
-     * @param {Object} config
-     */
-    beginGradientFill: function(config) {
-        var color,
-            alpha,
-            i = 0,
-            colors = config.colors,
-            alphas = config.alphas || [],
-            len = colors.length;
-        this._fillAlphas = alphas;
-        this._fillColors = colors;
-        this._fillType =  config.type || "linear";
-        this._fillRatios = config.ratios || [];
-        this._fillRotation = config.rotation || 0;
-        this._fillWidth = config.width || null;
-        this._fillHeight = config.height || null;
-        this._fillX = !isNaN(config.tx) ? config.tx : NaN;
-        this._fillY = !isNaN(config.ty) ? config.ty : NaN;
-        for(;i < len; ++i)
-        {
-            alpha = alphas[i];
-            color = colors[i];
-            if (alpha) {
-               color = this._2RGBA(color, alpha);
-            } else {
-                color = this._2RGB(color);
-            }
-            colors[i] = color;
-        }
-        this._updateDrawingQueue(["beginPath"]);
-        return this;
-    },
     
-    /**
-     * Specifies a line style used for subsequent calls to drawing methods.
-     * 
-     * @method lineStyle
-     * @param {Number} thickness indicates the thickness of the line
-     * @param {String} color hex color value for the line
-     * @param {Number} alpha Value between 0 and 1 used to specify the opacity of the fill.
-     */
-    lineStyle: function(thickness, color, alpha, pixelHinting, scaleMode, caps, joints, miterLimit) {
-        color = color || '#000000';
-        var context = this._context;
-        if(this._stroke)
-        {
-            this._updateDrawingQueue(["stroke"]);
-        }
-        this._lineWidth = thickness;
-
-        if (thickness) {
-            this._stroke = 1;
-        } else {
-            this._stroke = 0;
-        }
-
-        if (color) {
-            this._strokeStyle = color;
-            if (alpha) {
-                this._strokeStyle = this._2RGBA(this._strokeStyle, alpha);
-            }
-        }
-        
-        if(!this._fill)
-        {
-            this._updateDrawingQueue(["beginPath"]);
-        }
-
-        if (caps === 'butt') {
-            caps = 'none';
-        }
-        
-        if (context.lineCap) { // FF errors when trying to set
-            //context.lineCap = caps;
-        }
-        this._drawingComplete = false;
-        return this;
-    },
-
     /**
      * Draws a line segment using the current line style from the current drawing position to the specified x and y coordinates.
      * 
@@ -237,6 +178,10 @@ DrawingUtil.prototype = {
     lineTo: function(point1, point2, etc) {
         var args = arguments, 
             i, len;
+        if(!this._lineToMethods)
+        {
+            this._lineToMethods = [];
+        }
         if (typeof point1 === 'string' || typeof point1 === 'number') {
             args = [[point1, point2]];
         }
@@ -261,6 +206,7 @@ DrawingUtil.prototype = {
     moveTo: function(x, y) {
         this._updateDrawingQueue(["moveTo", x, y]);
         this._updateShapeProps(x, y);
+        this._updatePosition(x, y);
         this._drawingComplete = false;
         return this;
     },
@@ -271,9 +217,10 @@ DrawingUtil.prototype = {
      * @method clear
      */
     clear: function() {
+        var node = this.node;
         this._initProps();
-        this._canvas.width = this._canvas.width;
-        this._canvas.height = this._canvas.height;
+        node.setAttribute("width", node.getAttribute("width"));
+        node.setAttribute("height", node.getAttribute("height"));
         return this;
     },
     
@@ -320,19 +267,18 @@ DrawingUtil.prototype = {
      * @param {Number} r radius
      */
 	drawCircle: function(x, y, radius) {
-        var context = this._context,
-            startAngle = 0,
-            endAngle = 2 * Math.PI;
+        var startAngle = 0,
+            endAngle = 2 * Math.PI,
+            circum = radius * 2;
         this._shape = {
-            x:x - radius,
-            y:y - radius,
-            w:radius * 2,
-            h:radius * 2
+            x:x,
+            y:y,
+            w:circum,
+            h:circum
         };
         this._drawingComplete = false;
-        this._updateDrawingQueue(["beginPath"]);
-        this._updateDrawingQueue(["arc", x, y, radius, startAngle, endAngle, false]);
-        this._draw();
+        this._updatePosition(x + circum, y + circum);
+        this._updateDrawingQueue(["arc", x + radius, y + radius, radius, startAngle, endAngle, false]);
         return this;
     },
 
@@ -352,15 +298,14 @@ DrawingUtil.prototype = {
             w:w,
             h:h
         };
-        if(this._stroke && this._context.lineWidth > 0)
+        if(this._stroke && this._strokeWeight > 0)
         {
-            w -= this._context.lineWidth * 2;
-            h -= this._context.lineWidth * 2;
-            x += this._context.lineWidth;
-            y += this._context.lineWidth;
+            w -= this._strokeWeight * 2;
+            h -= this._strokeWeight * 2;
+            x += this._strokeWeight;
+            y += this._strokeWeight;
         }
-        var context = this._context,
-            l = 8,
+        var l = 8,
             theta = -(45/180) * Math.PI,
             angle = 0,
             angleMid,
@@ -370,14 +315,10 @@ DrawingUtil.prototype = {
             centerX = x + radius,
             centerY = y + yRadius,
             ax, ay, bx, by, cx, cy;
-        this._drawingComplete = false;
-        this._trackPos(x, y);
-        this._trackSize(x + w, y + h);
 
-        this._updateDrawingQueue(["beginPath"]);
         ax = centerX + Math.cos(0) * radius;
         ay = centerY + Math.sin(0) * yRadius;
-        this._updateDrawingQueue(["moveTo", ax, ay]);        
+        this.moveTo(ax, ay);
         for(; i < l; i++)
         {
             angle += theta;
@@ -386,9 +327,10 @@ DrawingUtil.prototype = {
             by = centerY + Math.sin(angle) * yRadius;
             cx = centerX + Math.cos(angleMid) * (radius / Math.cos(theta / 2));
             cy = centerY + Math.sin(angleMid) * (yRadius / Math.cos(theta / 2));
-            this._updateDrawingQueue(["quadraticCurveTo", cx, cy, bx, by]);
+            this.quadraticCurveTo(cx, cy, bx, by);
         }
-        this._draw();
+        this._trackPos(x, y);
+        this._trackSize(x + w, y + h);
         return this;
     },
 
@@ -402,7 +344,6 @@ DrawingUtil.prototype = {
      * @param {Number} h height
      */
     drawRect: function(x, y, w, h) {
-        var ctx = this._context;
         this._shape = {
             x:x,
             y:y,
@@ -410,15 +351,11 @@ DrawingUtil.prototype = {
             h:h
         };
         this._drawingComplete = false;
-        this._updateDrawingQueue(["beginPath"]);
-        this._updateDrawingQueue(["moveTo", x, y]);
-        this._updateDrawingQueue(["lineTo", x + w, y]);
-        this._updateDrawingQueue(["lineTo", x + w, y + h]);
-        this._updateDrawingQueue(["lineTo", x, y + h]);
-        this._updateDrawingQueue(["lineTo", x, y]);
-        this._trackPos(x, y);
-        this._trackSize(w, h);
-        this._draw();
+        this.moveTo(x, y);
+        this.lineTo(x + w, y);
+        this.lineTo(x + w, y + h);
+        this.lineTo(x, y + h);
+        this.lineTo(x, y);
         return this;
     },
 
@@ -440,9 +377,7 @@ DrawingUtil.prototype = {
             w:w,
             h:h
         };
-        var ctx = this._context;
         this._drawingComplete = false;
-        this._updateDrawingQueue(["beginPath"]);
         this._updateDrawingQueue(["moveTo", x, y + eh]);
         this._updateDrawingQueue(["lineTo", x, y + h - eh]);
         this._updateDrawingQueue(["quadraticCurveTo", x, y + h, x + ew, y + h]);
@@ -454,7 +389,7 @@ DrawingUtil.prototype = {
         this._updateDrawingQueue(["quadraticCurveTo", x, y, x, y + eh]);
         this._trackPos(x, y);
         this._trackSize(w, h);
-        this._draw();
+        this._paint();
         return this;
     },
     
@@ -539,7 +474,7 @@ DrawingUtil.prototype = {
         }
         this._trackPos(x, y);
         this._trackSize(radius, radius);
-        this._draw();
+        this._paint();
     },
     
     /**
@@ -548,7 +483,7 @@ DrawingUtil.prototype = {
      * @method end
      */
     end: function() {
-        this._draw();
+        this._paint();
         this._initProps();
         return this;
     },
@@ -582,268 +517,12 @@ DrawingUtil.prototype = {
         this._stroke = null;
         this._bitmapFill = null;
         this._drawingComplete = false;
-        this._lineToMethods = [];
-    },
-
-    /**
-     * Returns ths actual fill object to be used in a drawing or shape
-     *
-     * @method _getFill
-     * @private
-     */
-    _getFill: function() {
-        var type = this._fillType,
-            fill;
-
-        switch (type) {
-            case 'linear': 
-                fill = this._getLinearGradient('fill');
-                break;
-
-            case 'radial': 
-                fill = this._getRadialGradient('fill');
-                break;
-            case 'bitmap':
-                fill = this._bitmapFill;
-                break;
-            case 'solid': 
-                fill = this._fillColor;
-                break;
-        }
-        return fill;
-    },
-
-    /**
-     * Returns a linear gradient fill
-     *
-     * @method _getLinearGradient
-     * @private
-     */
-    _getLinearGradient: function(type) {
-        var prop = '_' + type,
-            colors = this[prop + 'Colors'],
-            ratios = this[prop + 'Ratios'],
-            x = !isNaN(this._fillX) ? this._fillX : this._shape.x,
-            y = !isNaN(this._fillY) ? this._fillY : this._shape.y,
-            w = this._fillWidth || (this._shape.w),
-            h = this._fillHeight || (this._shape.h),
-            ctx = this._context,
-            r = this[prop + 'Rotation'],
-            i,
-            l,
-            color,
-            ratio,
-            def,
-            grad,
-            x1, x2, y1, y2,
-            cx = x + w/2,
-            cy = y + h/2,
-            radCon = Math.PI/180,
-            tanRadians = parseFloat(parseFloat(Math.tan(r * radCon)).toFixed(8));
-        if(Math.abs(tanRadians) * w/2 >= h/2)
-        {
-            if(r < 180)
-            {
-                y1 = y;
-                y2 = y + h;
-            }
-            else
-            {
-                y1 = y + h;
-                y2 = y;
-            }
-            x1 = cx - ((cy - y1)/tanRadians);
-            x2 = cx - ((cy - y2)/tanRadians); 
-        }
-        else
-        {
-            if(r > 90 && r < 270)
-            {
-                x1 = x + w;
-                x2 = x;
-            }
-            else
-            {
-                x1 = x;
-                x2 = x + w;
-            }
-            y1 = ((tanRadians * (cx - x1)) - cy) * -1;
-            y2 = ((tanRadians * (cx - x2)) - cy) * -1;
-        }
-        grad = ctx.createLinearGradient(x1, y1, x2, y2);
-        l = colors.length;
-        def = 0;
-        for(i = 0; i < l; ++i)
-        {
-            color = colors[i];
-            ratio = ratios[i] || i/(l - 1);
-            grad.addColorStop(ratio, color);
-            def = (i + 1) / l;
-        }
-        
-        return grad;
-    },
-
-    /**
-     * Returns a radial gradient fill
-     *
-     * @method _getRadialGradient
-     * @private
-     */
-    _getRadialGradient: function(type) {
-        var prop = '_' + type,
-            colors = this[prop + "Colors"],
-            ratios = this[prop + "Ratios"],
-            i,
-            l,
-            w = this._fillWidth || this._shape.w,
-            h = this._fillHeight || this._shape.h,
-            x = !isNaN(this._fillX) ? this._fillX : this._shape.x,
-            y = !isNaN(this._fillY) ? this._fillY : this._shape.y,
-            color,
-            ratio,
-            def,
-            grad,
-            ctx = this._context;
-            x += w/2;
-            y += h/2;
-        grad = ctx.createRadialGradient(x, y, 1, x, y, w/2);
-        l = colors.length;
-        def = 0;
-        for(i = 0; i < l; ++i) {
-            color = colors[i];
-            ratio = ratios[i] || i/(l - 1);
-            grad.addColorStop(ratio, color);
-        }
-        return grad;
     },
    
-    /**
-     * Completes a shape or drawing
-     *
-     * @method _draw
-     * @private
-     */
-    _draw: function()
-    {
-        if(this._drawingComplete || !this._shape)
-        {
-            return;
-        }
-        var w,
-            h,
-            context = this._context,
-            fill,
-            methods = this._methods,
-            i = 0,
-            lineToMethods = this._lineToMethods,
-            lineToLen = lineToMethods.length,
-            method,
-            args,
-            len = methods ? methods.length : 0;
-        w = this._width + this._lineWidth;
-        h = this._height + this._lineWidth;
-        this.node.style.left = this._left + "px";
-        this.node.style.top = this._top + "px";
-        this.node.style.width = this._width + "px";
-        this.node.style.height = this._height + "px";
-        this._canvas.style.width = w + "px";
-        this._canvas.style.height = h + "px";
-        this._canvas.width = w;
-        this._canvas.height = h;
-        if(!len || len < 1)
-        {
-            return;
-        }
-        for(; i < lineToLen; ++i)
-        {
-            args = lineToMethods[i];
-            args[1] = args[1] - this._left;
-            args[2] = args[2] - this._top;
-        }
-        for(i = 0; i < len; ++i)
-        {
-            args = methods[i];
-            if(args && args.length > 0)
-            {
-                method = args.shift();
-                if(method)
-                {
-                    context[method].apply(context, args); 
-                }
-            }
-        }
-
-
-        if (this._fillType) {
-            fill = this._getFill();
-            if (fill) {
-                context.fillStyle = fill;
-            }
-            context.closePath();
-        }
-
-        if (this._fillType) {
-            context.fill();
-        }
-
-        if (this._stroke) {
-            if(this._lineWidth)
-            {
-                context.lineWidth = this._lineWidth;
-            }
-            context.strokeStyle = this._strokeStyle;
-            context.stroke();
-        }
-        this._drawingComplete = true;
-        //this.setSize(this._width, this._height);
-    },
-    
     /**
      * @private
      */
     _drawingComplete: false,
-
-    /**
-     * Regex expression used for converting hex strings to rgb
-     *
-     * @property _reHex
-     * @private
-     */
-    _reHex: /^#?([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})$/i,
-
-    /**
-     * Parses hex color string and alpha value to rgba
-     *
-     * @method _2RGBA
-     * @private
-     */
-    _2RGBA: function(val, alpha) {
-        alpha = (alpha !== undefined) ? alpha : 1;
-        if (this._reHex.exec(val)) {
-            val = 'rgba(' + [
-                parseInt(RegExp.$1, 16),
-                parseInt(RegExp.$2, 16),
-                parseInt(RegExp.$3, 16)
-            ].join(',') + ',' + alpha + ')';
-        }
-        return val;
-    },
-
-    /**
-     * Creates dom element used for converting color string to rgb
-     *
-     * @method _createDummy
-     * @private
-     */
-    _createDummy: function() {
-        var dummy = Y.config.doc.createElement('div');
-        dummy.style.height = 0;
-        dummy.style.width = 0;
-        dummy.style.overflow = 'hidden';
-        Y.config.doc.documentElement.appendChild(dummy);
-        return dummy;
-    },
 
     /**
      * Creates canvas element
@@ -853,21 +532,7 @@ DrawingUtil.prototype = {
      */
     _createGraphic: function(config) {
         var graphic = Y.config.doc.createElement('canvas');
-        // no size until drawn on
-        graphic.width = 600;
-        graphic.height = 600;
         return graphic;
-    },
-
-    /**
-     * Converts color to rgb format
-     *
-     * @method _2RGB
-     * @private 
-     */
-    _2RGB: function(val) {
-        this._dummy.style.background = val;
-        return this._dummy.style.backgroundColor;
     },
     
     /**
@@ -953,19 +618,7 @@ DrawingUtil.prototype = {
         {
             this._shape.h = Math.max(h, this._shape.h);
         }
-    },
-    
-    /**
-     * Creates a Shape instance and adds it to the graphics object.
-     *
-     * @method getShape
-     * @param {Object} config Object literal of properties used to construct a Shape.
-     * @return Shape
-     */
-    getShape: function(config) {
-        config.graphic = this;
-        return new Y.Shape(config); 
     }
 };
 
-Y.DrawingUtil = DrawingUtil;
+Y.Drawing = Drawing;

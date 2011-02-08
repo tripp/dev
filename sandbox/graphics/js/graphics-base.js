@@ -3,18 +3,3 @@
  *
  * @module graphics
  */
-var ISCHROME = Y.UA.chrome,
-    DRAWINGAPI,
-    canvas = document.createElement("canvas");
-if(document.implementation.hasFeature("http://www.w3.org/TR/SVG11/feature#BasicStructure", "1.1"))
-{
-    DRAWINGAPI = "svg";
-}
-else if(canvas && canvas.getContext && canvas.getContext("2d"))
-{
-    DRAWINGAPI = "canvas";
-}
-else
-{
-    DRAWINGAPI = "vml";
-}

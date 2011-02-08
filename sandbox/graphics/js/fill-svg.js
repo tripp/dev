@@ -2,53 +2,6 @@ function Fill(){}
 
 Fill.prototype = {
     /** 
-     * Specifies a bitmap fill used by subsequent calls to other drawing methods.
-     * 
-     * @method beginBitmapFill
-     * @param {Object} config
-     */
-    beginBitmapFill: function(config) {
-       
-        var fill = {};
-        fill.src = config.bitmap.src;
-        fill.type = "tile";
-        this._fillProps = fill;
-        if(!isNaN(config.tx) ||
-            !isNaN(config.ty) ||
-            !isNaN(config.width) ||
-            !isNaN(config.height))
-        {
-            this._gradientBox = {
-                tx:config.tx,
-                ty:config.ty,
-                width:config.width,
-                height:config.height
-            };
-        }
-        else
-        {
-            this._gradientBox = null;
-        }
-    },
-
-    /**
-     * Specifes a solid fill used by subsequent calls to other drawing methods.
-     *
-     * @method beginFill
-     * @param {String} color Hex color value for the fill.
-     * @param {Number} alpha Value between 0 and 1 used to specify the opacity of the fill.
-     */
-    beginFill: function(color, alpha) {
-        if (color) {
-            this._fillAlpha = Y.Lang.isNumber(alpha) ? alpha : 1;
-            this._fillColor = color;
-            this._fillType = 'solid';
-            this._fill = 1;
-        }
-        return this;
-    },
-    
-    /** 
      * Specifies a gradient fill used by subsequent calls to other drawing methods.
      *
      * @method beginGradientFill
@@ -72,29 +25,6 @@ Fill.prototype = {
         this._fillY = !isNaN(config.ty) ? config.ty : NaN;
         this._gradientId = "lg" + Math.round(100000 * Math.random());
         return this;
-    },
-    /**
-     * Returns ths actual fill object to be used in a drawing or shape
-     *
-     * @method _getFill
-     * @private
-     */
-    _getFill: function() {
-        var type = this._fillType,
-            fill;
-
-        switch (type) {
-            case 'linear': 
-                fill = this._getLinearGradient('fill');
-                break;
-            case 'radial': 
-                //fill = this._getRadialGradient('fill');
-                break;
-            case 'bitmap':
-                //fill = this._bitmapFill;
-                break;
-        }
-        return fill;
     },
 
     /**

@@ -1,0 +1,97 @@
+/**
+ * Draws an ellipse
+ */
+ Y.Ellipse = Y.Base.create("ellipse", Y.Shape, [], {
+    /**
+     * Indicates the type of shape
+     *
+     * @property _type
+     * @readOnly
+     * @type String
+     */
+    _type: "oval"
+ }, {
+    ATTRS: {
+        /**
+         * Horizontal radius for the ellipse.
+         *
+         * @attribute xRadius
+         * @type Number
+         */
+        xRadius: {
+            lazyAdd: false,
+
+            getter: function()
+            {
+                var val = this.get("width");
+                val = Math.round((val/2) * 100)/100;
+                return val;
+            },
+            
+            setter: function(val)
+            {
+                var w = val * 2; 
+                this.set("width", w);
+                return val;
+            }
+        },
+
+        /**
+         * Vertical radius for the ellipse.
+         *
+         * @attribute yRadius
+         * @type Number
+         */
+        yRadius: {
+            lazyAdd: false,
+            
+            getter: function()
+            {
+                var val = this.get("height");
+                val = Math.round((val/2) * 100)/100;
+                return val;
+            },
+
+            setter: function(val)
+            {
+                var h = val * 2;
+                this.set("height", h);
+                return val;
+            }
+        },
+
+        /**
+         * The x-coordinate based on the center of the circle.
+         *
+         * @attribute cx
+         * @type Number
+         */
+        cx: {
+            lazyAdd: false,
+
+            setter: function(val)
+            {
+                var node = this.get("node");
+                node.setAttribute("cx", val);
+                return val;
+            }
+        },
+
+        /**
+         * The y-coordinate based on the center of the circle.
+         *
+         * @attribute cy
+         * @type Number
+         */
+        cy: {
+            lazyAdd: false,
+
+            setter: function(val)
+            {
+                var node = this.get("node");
+                node.setAttribute("cy", val);
+                return val;
+            }
+        }
+    }
+ });

@@ -1,256 +1,441 @@
 /**
- * The Shape class creates a graphic object with editable 
- * properties.
+ * Base class for creating shapes.
  *
  * @class Shape
- * @extends Graphic
- * @constructor
  */
-function Shape(cfg)
-{
-    this._initialize(cfg);
-    this._draw();
-}
-
-Shape.prototype = {
+ Y.Shape = Y.Base.create("shape", Y.Base, [Y.Fill], {
     /**
-     * Indicates the type of shape. 
+     * Initializes the shape
      *
-     * @property type 
-     * @type string
+     * @private
+     * @method _initialize
      */
-    type: "shape",
+    initializer: function()
+    {
+        this._addListeners();
+        this._draw();
+    },
+   
+    /**
+     * Creates the dom node for the shape.
+     *
+     * @private
+     * @return HTMLElement
+     */
+    _getNode: function()
+    {
+        var node = this._createGraphicNode();
+        return node;
+    },
+
+    /**
+     * Adds change listeners to the shape.
+     *
+     * @private
+     * @method _addListeners
+     */
+    _addListeners: function()
+    {
+        this.after("strokeChange", this._strokeChangeHandler);
+        this.after("fillChange", this._fillChangeHandler);
+    },
     
     /**
-     * Initializes the graphic instance.
+     * Adds a stroke to the shape node.
      *
-     * @method _initialize
+     * @method _strokeChangeHandler
      * @private
      */
-    _initialize: function(cfg) 
+    _strokeChangeHandler: function(e)
     {
-        if(!cfg.graphic)
+        var node = this.get("node"),
+            stroke = this.get("stroke"),
+            strokeAlpha,
+            dashstyle,
+            i = 0,
+            len;
+        if(stroke && stroke.weight && stroke.weight > 0)
         {
-            cfg.graphic = new Y.Graphic();
+            strokeAlpha = stroke.alpha;
+            dashstyle = stroke.dashstyle || "none";
+            stroke.color = stroke.color || "#000000";
+            stroke.weight = stroke.weight || 1;
+            stroke.alpha = Y.Lang.isNumber(strokeAlpha) ? strokeAlpha : 1;
+            node.setAttribute("stroked", true);
+            node.setAttribute("strokeColor", stroke.color);
+            node.setAttribute("strokeWeight", stroke.weight);
+            if(stroke.alpha < 1 || (dashstyle && dashstyle != "none"))
+            {
+                if(!this._strokeNode)
+                {
+                    this._strokeNode = this._createGraphicNode("stroke");
+                    node.appendChild(this._strokeNode);
+                }
+                this._strokeNode.setAttribute("opacity", stroke.alpha);
+                if(Y.Lang.isArray(dashstyle))
+                {
+                    len = dashstyle.length;
+                    for(; i > len; ++i)
+                    {
+                        dashstyle[i] = Math.round(dashstyle[i] / stroke.weight);
+                    }
+                    dashstyle = dashstyle.toString();
+                    dashstyle = dashstyle.replace(/, /g, ",").replace(/,/g, " ");
+                }
+                this._strokeNode.setAttribute("dashstyle", dashstyle);
+            }
         }
-        this._setProps(cfg);
+        else
+        {
+            node.setAttribute("stroked", false);
+        }
+    },
+    
+    /**
+     * Adds a fill to the shape node.
+     *
+     * @method _fillChangeHandler
+     * @private
+     */
+    _fillChangeHandler: function(e)
+    {
+        var node = this.get("node"),
+            fill = this.get("fill"),
+            fillAlpha;
+        if(fill)
+        {
+            if(fill.type === "linear" || fill.type === "radial")
+            {
+                this.beginGradientFill(fill);
+                //node.appendChild(this._getFill());
+            }
+            else if(fill.type === "bitmap")
+            {
+                this.beginBitmapFill(fill);
+                //node.appendChild(this._getFill());
+            }
+            else
+            {
+                if(!fill.color)
+                {
+                    node.setAttribute("fill", "none");
+                }
+                else
+                {
+                    fillAlpha = fill.alpha; 
+                    fill.alpha = Y.Lang.isNumber(fillAlpha) ? fillAlpha : 1;
+                    node.setAttribute("fillColor", fill.color);
+                    node.setAttribute("opacity", fill.alpha);
+                }
+            }
+        }
+        else
+        {
+            node.setAttribute("fill", "none");
+            node.setAttribute("filled", false);
+        }
     },
 
     /**
-     * @private
-     */
-    width: 0,
-
-    /**
-     * @private
-     */
-    height: 0,
-
-    /**
-     * Updates properties for the shape.
+     * Applies translate transformation.
      *
-     * @method _setProps
-     * @param {Object} cfg Properties to update.
-     * @private
+     * @method translate
+     * @param {Number} x The x-coordinate
+     * @param {Number} y The y-coordinate
      */
-    _setProps: function(cfg) {
-        this.width = cfg.width && cfg.width >= 0 ? cfg.width : this.width;
-        this.height = cfg.height && cfg.height >= 0 ? cfg.height : this.height;
-        this.border = cfg.border || this.border;
-        this.graphics = cfg.graphic || this.graphics;
-        this.canvas = this.graphics;
-        this.parentNode = this.graphics.node;
-        this.fill = cfg.fill || this.fill;
-        this.type = cfg.shape || this.type;
-        this.props = cfg.props || this.props;
+    translate: function(x, y)
+    {
+        //var node = this.get("node");
     },
 
     /**
-     * Draws the graphic.
+     * Applies a skew to the x-coordinate
      *
-     * @method _draw
+     * @method skewX:q
+     * @param {Number} x x-coordinate
+     */
+     skewX: function(x)
+     {
+        //var node = this.get("node");
+     },
+
+    /**
+     * Applies a skew to the x-coordinate
+     *
+     * @method skewX:q
+     * @param {Number} x x-coordinate
+     */
+     skewY: function(y)
+     {
+        //var node = this.get("node");
+     },
+
+     /**
+      * Applies a rotation.
+      *
+      * @method rotate
+      * @param
+      */
+     rotate: function(deg, translate)
+     {
+        var node = this.get("node"),
+            rot =  deg,
+            absRot = Math.abs(rot),
+            radCon = Math.PI/180,
+            sinRadians = parseFloat(parseFloat(Math.sin(absRot * radCon)).toFixed(8)),
+            cosRadians = parseFloat(parseFloat(Math.cos(absRot * radCon)).toFixed(8)),
+            m11 = cosRadians,
+            m12 = rot > 0 ? -sinRadians : sinRadians,
+            m21 = -m12,
+            m22 = m11,
+            width = this.get("width"),
+            height = this.get("height"),
+            leftOffset = width,
+            topOffset = 0,
+            x = parseInt(node.style.left, 10) || node.getAttribute("x") || 0,    
+            y = parseInt(node.style.top, 10) || node.getAttribute("y") || 0,    
+            filterString = "";
+            node.style.filter = null; 
+            if(rot === 0)
+            {
+                leftOffset = width;
+                topOffset -= height * 0.5;
+            }
+            else if(absRot === 90)
+            {
+                leftOffset = height;
+                topOffset -= width * 0.5;
+            }
+            else if(rot > 0)
+            {
+                leftOffset = (cosRadians * width) + (height * rot/90);
+                topOffset -= (sinRadians * width) + (cosRadians * (height * 0.5));
+            }
+            else
+            {
+                leftOffset = (cosRadians * width) + (absRot/90 * height);
+                topOffset -= cosRadians * (height * 0.5);
+            }
+            node.style.left = (x - leftOffset) + "px";
+            node.style.top = (y + topOffset) + "px";
+            if(rot !== 0)
+            {
+                filterString += 'progid:DXImageTransform.Microsoft.Matrix(M11=' + m11 + ' M12=' + m12 + ' M21=' + m21 + ' M22=' + m22 + ' sizingMethod="auto expand")';
+            }
+            if(filterString)
+            {
+                node.style.filter = filterString;
+            }
+     },
+
+    /**
+     * Applies a scale transform
+     *
+     * @method scale
+     * @param {Number} val
+     */
+    scale: function(val)
+    {
+        //var node = this.get("node");
+    },
+
+    /**
+     * Applies a matrix transformation
+     *
+     * @method matrix
+     */
+    matrix: function(a, b, c, d, e, f)
+    {
+        //var node = this.get("node");
+    },
+
+    /**
      * @private
      */
     _draw: function()
     {
-        var path,
-            borderWeight = 0,
-            fillWidth = this.width || 0,
-            fillHeight = this.height || 0;
-        this.graphics.setSize(fillWidth, fillHeight);
-        if(this.node)
-        {
-            this.node.style.visible = "hidden";
-        }
-        else if(!this.node)
-        {
-            this.node = this.graphics._createGraphicNode(this.graphics._getNodeShapeType(this.type));
-            this.graphics.node.appendChild(this.node);
-        }
-        if(this.type === "wedge")
-        {
-            path = this.graphics._getWedgePath(this.props);
-            if(this.fill)
-            {
-                path += ' x';
-            }
-            if(this.border)
-            {
-                path += ' e';
-            }
-            this.node.path = path;
-        }
-        this._addBorder();
-        if(this.border && this.border.weight && this.border.weight > 0)
-        {
-            borderWeight = this.border.weight;
-            fillWidth -= borderWeight;
-            fillHeight -= borderWeight;
-        }
-        this.node.style.width = Math.max(fillWidth, 0) + "px";
-        this.node.style.height = Math.max(fillHeight, 0) + "px";
-        this._addFill();
-        return this;
+        var node = this.get("node"),
+            x = this.get("x"),
+            y = this.get("y"),
+            w = this.get("width"),
+            h = this.get("height");
+        node.style.position = "absolute";
+        node.style.left = x + "px";
+        node.style.top = y + "px";
+        node.style.width = w + "px";
+        node.style.height = h + "px";
+        //node.setAttribute("coordSize", w + ', ' + h);
+        this._fillChangeHandler();
+        this._strokeChangeHandler();
     },
-    
+
     /**
-     * Adds a border to the shape node.
+     * Creates a graphic node
      *
-     * @method _addBorder
+     * @method _createGraphicNode
+     * @param {String} type node type to create
+     * @param {String} pe specified pointer-events value
+     * @return HTMLElement
      * @private
      */
-    _addBorder: function()
+    _createGraphicNode: function(type)
     {
-        if(this.border && this.border.weight && this.border.weight > 0)
-        {
-            var borderAlpha = this.border.alpha,
-                borderWeight = this.borderWeight;
-            borderAlpha = Y.Lang.isNumber(borderAlpha) ? borderAlpha : 1;
-            borderWeight = Y.Lang.isNumber(borderWeight) ? borderWeight : 1;
-            this.node.strokecolor = this.border.color || "#000000";
-            this.node.strokeweight = borderWeight;
-            if(borderAlpha < 1)
-            {
-                if(!this._strokeNode)
-                {
-                    this._strokeNode = this.graphics._createGraphicNode("stroke");
-                    this.node.appendChild(this._strokeNode);
-                }
-                this._strokeNode.opacity = borderAlpha;
-            }
-            else if(this._strokeNode)
-            {
-                this._strokeNode.opacity = borderAlpha;
-            }
-            this.node.stroked = true;
-        }
-        else
-        {
-            this.node.stroked = false;
-        }
-    },
-
-    /**
-     * Adds a fill to the shape node.
-     *
-     * @method _addFill
-     * @private
-     */
-    _addFill: function()
-    {
-        var fillAlpha;
-        this.node.filled = true;
-        if(this.fill.type === "linear" || this.fill.type === "radial")
-        {
-            this.graphics.beginGradientFill(this.fill);
-            this.node.appendChild(this.graphics._getFill());
-        }
-        else if(this.fill.type === "bitmap")
-        {
-            this.graphics.beginBitmapFill(this.fill);
-            this.node.appendChild(this.graphics._getFill());
-        }
-        else
-        {
-            if(!this.fill.color)
-            {
-                this.node.filled = false;
-            }
-            else
-            {
-                if(this.fillnode)
-                {
-                    this.graphics._removeChildren(this.fillnode);
-                }
-                fillAlpha = this.fill.alpha;
-                fillAlpha = Y.Lang.isNumber(fillAlpha) ? fillAlpha : 1;
-                this.fill.alpha = fillAlpha;
-                this.fillnode = this.graphics._createGraphicNode("fill");
-                this.fillnode.type = "solid";
-                this.fillnode.color = this.fill.color;
-                this.fillnode.opacity = fillAlpha;
-                this.node.appendChild(this.fillnode);
-            }
-        }
-    },
-    
-    /**
-     * Adds a class to the shape's node.
-     *
-     * @method addClass
-     * @param {String} className Name of the class to add.
-     */
-    addClass: function(val)
-    {
-        var node = this.node;
-        if(node)
-        {
-            Y.one(node).addClass(val);
-        }
-    },
-
-    /**
-     * Sets the visibility of a shape.
-     * 
-     * @method toggleVisible
-     * @param {Boolean} val indicates whether or not the shape is visible.
-     */
-    toggleVisible: function(val)
-    {
-        var visibility = val ? "visible" : "hidden";
-        if(this.node)
-        {
-            Y.one(this.node).setStyle("visibility", visibility);
-        }
-    },
-
-    /**
-     * Positions the parent node of the shape.
-     *
-     * @method setPosition
-     * @param {Number}, x The x-coordinate
-     * @param {Number}, y The y-coordinate
-     */
-    setPosition: function(x, y)
-    {
-        var pNode = Y.one(this.parentNode);
-        pNode.setStyle("position", "absolute");
-        pNode.setStyle("left", x);
-        pNode.setStyle("top", y);
-    },
-    
-    /**
-     * Updates the properties of the shape instance.
-     *
-     * @method update
-     * @param {Object} cfg Object literal containing properties to update.
-     */
-    update: function(cfg)
-    {
-        this._setProps(cfg);
-        this._draw();
-        return this;
+        type = type || this._type;
+        return document.createElement('<' + type + ' xmlns="urn:schemas-microsft.com:vml" class="vml' + type + '"/>');
     }
-};
+ }, {
+    ATTRS: {
+        /**
+         * Indicates the x position of shape.
+         *
+         * @attribute x
+         * @type Number
+         */
+        x: {
+            value: 0,
 
-Y.Shape = Shape;
+            setter: function(val)
+            {
+                var node = this.get("node");
+                node.style.left = val + "px";
+                return val;
+            }
+        },
+
+        /**
+         * Indicates the y position of shape.
+         *
+         * @attribute y
+         * @type Number
+         */
+        y: {
+            value: 0,
+
+            setter: function(val)
+            {
+                var node = this.get("node");
+                node.style.top = val + "px";
+                return val;
+            }
+        },
+
+        /**
+         * Dom node of the shape
+         *
+         * @attribute node
+         * @type HTMLElement
+         * @readOnly
+         */
+        node: {
+            readOnly: true,
+
+            valueFn: "_getNode" 
+        },
+
+        /**
+         * 
+         * @attribute width
+         */
+        width: {
+            value: 0,
+
+            setter: function(val)
+            {
+                var node = this.get("node");
+                node.setAttribute("width", val);
+                node.style.width = val + "px";
+                return val;
+            }
+        },
+
+        /**
+         * 
+         * @attribute height
+         */
+        height: {
+            value: 0,
+
+            setter: function(val)
+            {
+                var node = this.get("node");
+                node.setAttribute("height", val);
+                node.style.height = val + "px";
+                return val;
+            }
+        },
+
+        /**
+         * Indicates whether the shape is visible.
+         *
+         * @attribute visible
+         * @type Boolean
+         */
+        visible: {
+            value: true,
+
+            setter: function(val){
+                var visibility = val ? "visible" : "hidden";
+                this.get("node").style.visibility = visibility;
+                return val;
+            }
+        },
+
+        /**
+         * Contains information about the fill of the shape.
+         *
+         * @attribute fill
+         * @type Object
+         */
+        fill: {
+            setter: function(val)
+            {
+                var tmpl = this.get("fill") || this._getAttrCfg("fill").defaultValue;
+                return (val) ? Y.merge(tmpl, val) : null;
+            }
+        },
+
+        /**
+         * Contains information about the stroke of the shape.
+         *
+         * @attribute stroke
+         * @type Object
+         */
+        stroke: {
+            valueFn: function() {
+                return {
+                    weight: 1,
+                    dashstyle: "none",
+                    color: "#000",
+                    alpha: 1.0
+                };
+            },
+            
+            setter: function(val)
+            {
+                var tmpl = this.get("fill") || this._getAttrCfg("fill").defaultValue;
+                return (val) ? Y.merge(tmpl, val) : null;
+            }
+        },
+        
+        /**
+         * Indicates whether or not the instance will size itself based on its contents.
+         *
+         * @attribute autoSize 
+         * @type Boolean
+         */
+        autoSize: {
+            value: false
+        },
+
+        /**
+         * Determines whether the instance will receive mouse events.
+         * 
+         * @attribute pointerEvents
+         * @type string
+         */
+        pointerEvents: {
+            value: "visiblePainted"
+        }
+    }
+});
+
