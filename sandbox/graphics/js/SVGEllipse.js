@@ -11,6 +11,12 @@
      */
     _type: "ellipse",
 
+    /**
+     * Updates the shape.
+     *
+     * @method _draw
+     * @private
+     */
     _draw: function()
     {
         var node = this.get("node"),
@@ -36,6 +42,7 @@
          *
          * @attribute xRadius
          * @type Number
+         * @readOnly
          */
         xRadius: {
             readOnly: true,
@@ -56,6 +63,7 @@
          *
          * @attribute yRadius
          * @type Number
+         * @readOnly
          */
         yRadius: {
             readOnly: true,
@@ -81,14 +89,6 @@
             lazyAdd: false,
             
             value: 0
-            /*,
-
-            setter: function(val)
-            {
-                var node = this.get("node");
-                node.setAttribute("cx", val);
-                return val;
-            }*/
         },
 
         /**
@@ -99,16 +99,6 @@
          */
         y: {
             lazyAdd: false
-            /*,
-
-            value: 0,
-
-            setter: function(val)
-            {
-                var node = this.get("node");
-                node.setAttribute("cy", val);
-                return val;
-            }*/
         }
     }
  });

@@ -278,10 +278,8 @@ Drawing.prototype = {
      */
     drawWedge: function(x, y, startAngle, arc, radius, yRadius)
     {
-        var diameter = radius * 2;
         this._drawingComplete = false;
         this.path = this._getWedgePath({x:x, y:y, startAngle:startAngle, arc:arc, radius:radius, yRadius:yRadius});
-        this._trackSize(diameter, diameter); 
     },
 
     /**
@@ -312,6 +310,7 @@ Drawing.prototype = {
             cx,
             cy,
             i = 0,
+            diameter = radius * 2,
             path = ' M' + x + ', ' + y;  
         
         // limit sweep to reasonable numbers
@@ -352,6 +351,7 @@ Drawing.prototype = {
             }
             path += ' L' + x + ", " + y;
         }
+        this._trackSize(diameter, diameter); 
         return path;
     },
     
@@ -368,6 +368,7 @@ Drawing.prototype = {
             len,
             pathArrayLen,
             currentArray;
+        this._pathArray = this._pathArray || [];
         if (typeof point1 === 'string' || typeof point1 === 'number') {
             args = [[point1, point2]];
         }
@@ -491,144 +492,12 @@ Drawing.prototype = {
     }
 };
 Y.Drawing = Drawing;
-function Fill(){}
-
-Fill.prototype = {
-    /** 
-     * Specifies a gradient fill used by subsequent calls to other drawing methods.
-     *
-     * @method beginGradientFill
-     * @param {Object} config
-     */
-    beginGradientFill: function(config) {
-        var alphas = config.alphas || [];
-        if(!this._defs)
-        {
-            this._defs = this._createGraphicNode("defs");
-            this.node.appendChild(this._defs);
-        }
-        this._fillAlphas = alphas;
-        this._fillColors = config.colors;
-        this._fillType =  config.type || "linear";
-        this._fillRatios = config.ratios || [];
-        this._fillRotation = config.rotation || 0;
-        this._fillWidth = config.width || null;
-        this._fillHeight = config.height || null;
-        this._fillX = !isNaN(config.tx) ? config.tx : NaN;
-        this._fillY = !isNaN(config.ty) ? config.ty : NaN;
-        this._gradientId = "lg" + Math.round(100000 * Math.random());
-        return this;
-    },
-
-    /**
-     * Returns a linear gradient fill
-     *
-     * @method _getLinearGradient
-     * @param {String} type gradient type
-     * @private
-     */
-    _getLinearGradient: function(type) {
-        var fill = this._createGraphicNode("linearGradient"),
-            prop = '_' + type,
-            colors = this[prop + 'Colors'],
-            ratios = this[prop + 'Ratios'],
-            alphas = this[prop + 'Alphas'],
-            w = this._fillWidth || (this._shape.w),
-            h = this._fillHeight || (this._shape.h),
-            r = this[prop + 'Rotation'],
-            i,
-            l,
-            color,
-            ratio,
-            alpha,
-            def,
-            stop,
-            x1, x2, y1, y2,
-            cx = w/2,
-            cy = h/2,
-            radCon,
-            tanRadians;
-        /*
-        if(r > 0 && r < 90)
-        {
-            r *= h/w;
-        }
-        else if(r > 90 && r < 180)
-        {
-
-            r =  90 + ((r-90) * w/h);
-        }
-*/
-        radCon = Math.PI/180;
-        tanRadians = parseFloat(parseFloat(Math.tan(r * radCon)).toFixed(8));
-        if(Math.abs(tanRadians) * w/2 >= h/2)
-        {
-            if(r < 180)
-            {
-                y1 = 0;
-                y2 = h;
-            }
-            else
-            {
-                y1 = h;
-                y2 = 0;
-            }
-            x1 = cx - ((cy - y1)/tanRadians);
-            x2 = cx - ((cy - y2)/tanRadians); 
-        }
-        else
-        {
-            if(r > 90 && r < 270)
-            {
-                x1 = w;
-                x2 = 0;
-            }
-            else
-            {
-                x1 = 0;
-                x2 = w;
-            }
-            y1 = ((tanRadians * (cx - x1)) - cy) * -1;
-            y2 = ((tanRadians * (cx - x2)) - cy) * -1;
-        }
-        /*
-        fill.setAttribute("spreadMethod", "pad");
-        
-        fill.setAttribute("x1", Math.round(100 * x1/w) + "%");
-        fill.setAttribute("y1", Math.round(100 * y1/h) + "%");
-        fill.setAttribute("x2", Math.round(100 * x2/w) + "%");
-        fill.setAttribute("y2", Math.round(100 * y2/h) + "%");
-        */
-        fill.setAttribute("gradientTransform", "rotate(" + r + ")");//," + (w/2) + ", " + (h/2) + ")");
-        fill.setAttribute("width", w);
-        fill.setAttribute("height", h);
-        fill.setAttribute("gradientUnits", "userSpaceOnUse");
-        l = colors.length;
-        def = 0;
-        for(i = 0; i < l; ++i)
-        {
-            alpha = alphas[i];
-            color = colors[i];
-            ratio = ratios[i] || i/(l - 1);
-            ratio = Math.round(ratio * 100) + "%";
-            alpha = Y.Lang.isNumber(alpha) ? alpha : "1";
-            def = (i + 1) / l;
-            stop = this._createGraphicNode("stop");
-            stop.setAttribute("offset", ratio);
-            stop.setAttribute("stop-color", color);
-            stop.setAttribute("stop-opacity", alpha);
-            fill.appendChild(stop);
-        }
-        return fill;
-    }
-};
-Y.Fill = Fill;
 /**
  * Base class for creating shapes.
  *
  * @class Shape
  */
- Y.Shape = Y.Base.create("shape", Y.Base, [Y.Fill], {
+ Y.Shape = Y.Base.create("shape", Y.Base, [], {
     /**
      * Initializes the shape
      *
@@ -682,16 +551,21 @@ Y.Fill = Fill;
         var node = this.get("node"),
             stroke = this.get("stroke"),
             strokeAlpha,
-            dashstyle;
+            dashstyle,
+            dash,
+            i, 
+            len,
+            space;
         if(stroke && stroke.weight && stroke.weight > 0)
         {
             strokeAlpha = stroke.alpha;
             dashstyle = stroke.dashstyle || "none";
+            dash = Y.Lang.isArray(dashstyle) ? dashstyle.toString() : dashstyle;
             stroke.color = stroke.color || "#000000";
             stroke.weight = stroke.weight || 1;
             stroke.alpha = Y.Lang.isNumber(strokeAlpha) ? strokeAlpha : 1;
-            stroke.linecap = stroke.linecap || "square";
-            node.setAttribute("stroke-dasharray", dashstyle);
+            stroke.linecap = stroke.linecap || "butt";
+            node.setAttribute("stroke-dasharray", dash);
             node.setAttribute("stroke", stroke.color);
             node.setAttribute("stroke-linecap", stroke.linecap);
             node.setAttribute("stroke-width",  stroke.weight);
@@ -756,26 +630,23 @@ Y.Fill = Fill;
      */
     translate: function(x, y)
     {
+        this._translate.apply(this, arguments);
+    },
+
+    /**
+     * Applies translate transformation.
+     *
+     * @method translate
+     * @param {Number} x The x-coordinate
+     * @param {Number} y The y-coordinate
+     * @protected
+     */
+    _translate: function(x, y)
+    {
         var node = this.get("node"),
             translate = "translate(" + x + ", " + y + ")",
             transform = node.getAttribute("transform");
-        //this._updateTransform("translate", /translate\(.*\)/, translate);
-        if(transform && transform.length > 0)
-        {
-            if(transform.indexOf("translate") > -1)
-            {
-                transform = transform.replace(/translate\(.*\)/, translate);
-            }
-            else
-            {
-                transform += " " + translate;
-            }
-        }
-        else
-        {
-            transform = translate;
-        }
-        node.setAttribute("transform", transform);
+        this._updateTransform("translate", /translate\(.*\)/, translate);
     },
 
     /**
@@ -863,6 +734,9 @@ Y.Fill = Fill;
     },
 
     /**
+     * Updates the shape.
+     *
+     * @method _draw
      * @private
      */
     _draw: function()
@@ -870,14 +744,36 @@ Y.Fill = Fill;
         var node = this.get("node");
         node.setAttribute("width", this.get("width"));
         node.setAttribute("height", this.get("height"));
+        node.style.left = this.get("x") + "px";
+        node.style.top = this.get("y") + "px";
         this._fillChangeHandler();
         this._strokeChangeHandler();
     },
 
+    /**
+     * Change event listener
+     *
+     * @private
+     * @method _updateHandler
+     */
     _updateHandler: function(e)
     {
         this._draw();
-    }
+    },
+    
+    /**
+     * Storage for translateX
+     *
+     * @private
+     */
+    _translateX: 0,
+
+    /**
+     * Storage for translateY
+     *
+     * @private
+     */
+    _translateY: 0
  }, {
     ATTRS: {
         /**
@@ -893,8 +789,20 @@ Y.Fill = Fill;
             valueFn: "_getNode" 
         },
 
+        /**
+         * Indicates the x position of shape.
+         *
+         * @attribute x
+         * @type Number
+         */
         x: {},
 
+        /**
+         * Indicates the y position of shape.
+         *
+         * @attribute y
+         * @type Number
+         */
         y: {},
 
         /**
@@ -980,6 +888,46 @@ Y.Fill = Fill;
          */
         pointerEvents: {
             value: "visiblePainted"
+        },
+
+        /**
+         * Performs a translate on the x-coordinate. When translating x and y coordinates,
+         * use the <code>translate</code> method.
+         *
+         * @attribute translateX
+         * @type Number
+         */
+        translateX: {
+            getter: function()
+            {
+                return this._translateX;
+            },
+
+            setter: function(val)
+            {
+                this.transform(val, this.get("translateY"));
+                return val;
+            }
+        },
+        
+        /**
+         * Performs a translate on the y-coordinate. When translating x and y coordinates,
+         * use the <code>translate</code> method.
+         *
+         * @attribute translateX
+         * @type Number
+         */
+        translateY: {
+            getter: function()
+            {
+                return this._translateY;
+            },
+
+            setter: function(val)
+            {
+                this.transform(this.get("translateX"), val);
+                return val;
+            }
         }
     }
 });
@@ -1045,20 +993,22 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
             val2,
             i,
             path = "",
-            node = this.get("node");
+            node = this.get("node"),
+            left = this._left + this.get("translateX"),
+            top = this._top + this._translateY;
         while(pathArray && pathArray.length > 0)
         {
             segmentArray = pathArray.shift();
             len = segmentArray.length;
             pathType = segmentArray[0];
-            path += " " + pathType + (segmentArray[1] - this._left);
+            path += " " + pathType + (segmentArray[1] - left);
             switch(pathType)
             {
                 case "L" :
                 case "M" :
                     for(i = 2; i < len; ++i)
                     {
-                        val = (i % 2 === 0) ? this._top : this._left;
+                        val = (i % 2 === 0) ? top : left;
                         val = segmentArray[i] - val;
                         path += ", " + val;
                     }
@@ -1067,7 +1017,7 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
                 case "C" :
                     for(i = 2; i < len; ++i)
                     {
-                        val = (i % 2 === 0) ? this._top : this._left;
+                        val = (i % 2 === 0) ? top : left;
                         val2 = segmentArray[i];
                         val2 -= val;
                         path += " " + val2;
@@ -1081,32 +1031,26 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
             path += 'z';
         }
         node.setAttribute("d", path);
-        node.setAttribute("transform", "translate(" + this._left + ", " + this._top + ")");
+        this._translate(left, top);
         this.set("path", path);
         this._fillChangeHandler();
         this._strokeChangeHandler();
     },
-
-    /**
-     * @private
-     */
-    _updateHandler: function()
-    {
-        var x = this.get("x"),
-            y = this.get("y");
-        x += this._xTranslate;
-        y += this._yTranslate;
-    },
     
     /**
-     * @private
+     * Applies translate transformation.
+     *
+     * @method translate
+     * @param {Number} x The x-coordinate
+     * @param {Number} y The y-coordinate
      */
-    _xTranslate: 0,
-
-    /**
-     * @private
-     */
-    _yTranslate: 0,
+    translate: function(x, y)
+    {
+        var node = this.get("node");
+        this._translateX = x;
+        this._translateY = y;
+        this._translate(this._left + x, this._top + y);
+    },
 
     /**
      * Completes a drawing operation. 
@@ -1148,6 +1092,12 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
      */
     _type: "ellipse",
 
+    /**
+     * Updates the shape.
+     *
+     * @method _draw
+     * @private
+     */
     _draw: function()
     {
         var node = this.get("node"),
@@ -1173,6 +1123,7 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
          *
          * @attribute xRadius
          * @type Number
+         * @readOnly
          */
         xRadius: {
             readOnly: true,
@@ -1193,6 +1144,7 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
          *
          * @attribute yRadius
          * @type Number
+         * @readOnly
          */
         yRadius: {
             readOnly: true,
@@ -1218,14 +1170,6 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
             lazyAdd: false,
             
             value: 0
-            /*,
-
-            setter: function(val)
-            {
-                var node = this.get("node");
-                node.setAttribute("cx", val);
-                return val;
-            }*/
         },
 
         /**
@@ -1236,16 +1180,6 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
          */
         y: {
             lazyAdd: false
-            /*,
-
-            value: 0,
-
-            setter: function(val)
-            {
-                var node = this.get("node");
-                node.setAttribute("cy", val);
-                return val;
-            }*/
         }
     }
  });
@@ -1277,6 +1211,12 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
         this.after("y", this._updateHandler);
     },
 
+    /**
+     * Updates the shape.
+     *
+     * @method _draw
+     * @private
+     */
     _draw: function()
     {
         var node = this.get("node"),
@@ -1578,6 +1518,12 @@ Graphic.prototype = {
         return node;
     },
 
+    /**
+     * Adds a shape instance to the graphic instance.
+     *
+     * @method addShape
+     * @param {Shape} shape The shape instance to be added to the graphic.
+     */
     addShape: function(shape)
     {
         var node = shape.get("node");
@@ -1593,4 +1539,4 @@ Y.Graphic = Graphic;
 
 
 
-}, '@VERSION@' ,{skinnable:false, requires:['graphics']});
+}, '@VERSION@' ,{requires:['graphics'], skinnable:false});

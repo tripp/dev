@@ -3,7 +3,7 @@
  *
  * @class Shape
  */
- Y.Shape = Y.Base.create("shape", Y.Base, [Y.Fill], {
+ Y.Shape = Y.Base.create("shape", Y.Base, [], {
     /**
      * Initializes the shape
      *
@@ -57,16 +57,21 @@
         var node = this.get("node"),
             stroke = this.get("stroke"),
             strokeAlpha,
-            dashstyle;
+            dashstyle,
+            dash,
+            i, 
+            len,
+            space;
         if(stroke && stroke.weight && stroke.weight > 0)
         {
             strokeAlpha = stroke.alpha;
             dashstyle = stroke.dashstyle || "none";
+            dash = Y.Lang.isArray(dashstyle) ? dashstyle.toString() : dashstyle;
             stroke.color = stroke.color || "#000000";
             stroke.weight = stroke.weight || 1;
             stroke.alpha = Y.Lang.isNumber(strokeAlpha) ? strokeAlpha : 1;
-            stroke.linecap = stroke.linecap || "square";
-            node.setAttribute("stroke-dasharray", dashstyle);
+            stroke.linecap = stroke.linecap || "butt";
+            node.setAttribute("stroke-dasharray", dash);
             node.setAttribute("stroke", stroke.color);
             node.setAttribute("stroke-linecap", stroke.linecap);
             node.setAttribute("stroke-width",  stroke.weight);
@@ -131,26 +136,23 @@
      */
     translate: function(x, y)
     {
+        this._translate.apply(this, arguments);
+    },
+
+    /**
+     * Applies translate transformation.
+     *
+     * @method translate
+     * @param {Number} x The x-coordinate
+     * @param {Number} y The y-coordinate
+     * @protected
+     */
+    _translate: function(x, y)
+    {
         var node = this.get("node"),
             translate = "translate(" + x + ", " + y + ")",
             transform = node.getAttribute("transform");
-        //this._updateTransform("translate", /translate\(.*\)/, translate);
-        if(transform && transform.length > 0)
-        {
-            if(transform.indexOf("translate") > -1)
-            {
-                transform = transform.replace(/translate\(.*\)/, translate);
-            }
-            else
-            {
-                transform += " " + translate;
-            }
-        }
-        else
-        {
-            transform = translate;
-        }
-        node.setAttribute("transform", transform);
+        this._updateTransform("translate", /translate\(.*\)/, translate);
     },
 
     /**
@@ -238,6 +240,9 @@
     },
 
     /**
+     * Updates the shape.
+     *
+     * @method _draw
      * @private
      */
     _draw: function()
@@ -245,14 +250,36 @@
         var node = this.get("node");
         node.setAttribute("width", this.get("width"));
         node.setAttribute("height", this.get("height"));
+        node.style.left = this.get("x") + "px";
+        node.style.top = this.get("y") + "px";
         this._fillChangeHandler();
         this._strokeChangeHandler();
     },
 
+    /**
+     * Change event listener
+     *
+     * @private
+     * @method _updateHandler
+     */
     _updateHandler: function(e)
     {
         this._draw();
-    }
+    },
+    
+    /**
+     * Storage for translateX
+     *
+     * @private
+     */
+    _translateX: 0,
+
+    /**
+     * Storage for translateY
+     *
+     * @private
+     */
+    _translateY: 0
  }, {
     ATTRS: {
         /**
@@ -268,8 +295,20 @@
             valueFn: "_getNode" 
         },
 
+        /**
+         * Indicates the x position of shape.
+         *
+         * @attribute x
+         * @type Number
+         */
         x: {},
 
+        /**
+         * Indicates the y position of shape.
+         *
+         * @attribute y
+         * @type Number
+         */
         y: {},
 
         /**
@@ -355,6 +394,46 @@
          */
         pointerEvents: {
             value: "visiblePainted"
+        },
+
+        /**
+         * Performs a translate on the x-coordinate. When translating x and y coordinates,
+         * use the <code>translate</code> method.
+         *
+         * @attribute translateX
+         * @type Number
+         */
+        translateX: {
+            getter: function()
+            {
+                return this._translateX;
+            },
+
+            setter: function(val)
+            {
+                this.transform(val, this.get("translateY"));
+                return val;
+            }
+        },
+        
+        /**
+         * Performs a translate on the y-coordinate. When translating x and y coordinates,
+         * use the <code>translate</code> method.
+         *
+         * @attribute translateX
+         * @type Number
+         */
+        translateY: {
+            getter: function()
+            {
+                return this._translateY;
+            },
+
+            setter: function(val)
+            {
+                this.transform(this.get("translateX"), val);
+                return val;
+            }
         }
     }
 });

@@ -137,10 +137,8 @@ Drawing.prototype = {
      */
     drawWedge: function(x, y, startAngle, arc, radius, yRadius)
     {
-        var diameter = radius * 2;
         this._drawingComplete = false;
         this.path = this._getWedgePath({x:x, y:y, startAngle:startAngle, arc:arc, radius:radius, yRadius:yRadius});
-        this._trackSize(diameter, diameter); 
     },
 
     /**
@@ -171,6 +169,7 @@ Drawing.prototype = {
             cx,
             cy,
             i = 0,
+            diameter = radius * 2,
             path = ' M' + x + ', ' + y;  
         
         // limit sweep to reasonable numbers
@@ -211,6 +210,7 @@ Drawing.prototype = {
             }
             path += ' L' + x + ", " + y;
         }
+        this._trackSize(diameter, diameter); 
         return path;
     },
     
@@ -227,6 +227,7 @@ Drawing.prototype = {
             len,
             pathArrayLen,
             currentArray;
+        this._pathArray = this._pathArray || [];
         if (typeof point1 === 'string' || typeof point1 === 'number') {
             args = [[point1, point2]];
         }

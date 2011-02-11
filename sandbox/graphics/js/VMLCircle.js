@@ -67,40 +67,6 @@
                 val = radius && radius > 0 ? radius * 2 : 0;
                 return val;
             }
-        },
-        
-        /**
-         * The x-coordinate based on the center of the circle.
-         *
-         * @attribute cx
-         * @type Number
-         */
-        cx: {
-            lazyAdd: false,
-
-            setter: function(val)
-            {
-                var node = this.get("node");
-                node.setAttribute("cx", val);
-                return val;
-            }
-        },
-
-        /**
-         * The y-coordinate based on the center of the circle.
-         *
-         * @attribute cy
-         * @type Number
-         */
-        cy: {
-            lazyAdd: false,
-
-            setter: function(val)
-            {
-                var node = this.get("node");
-                node.setAttribute("cy", val);
-                return val;
-            }
         }
     }
  });

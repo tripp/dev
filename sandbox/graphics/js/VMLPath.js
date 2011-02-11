@@ -29,9 +29,11 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
             w = this.get("width"),
             h = this.get("height"),
             path = this.get("path");
+        this._fillChangeHandler();
+        this._strokeChangeHandler();
         if(path)
         {
-            if(fill)
+            if(fill && fill.color)
             {
                 path += ' x';
             }
@@ -42,19 +44,15 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
         }
         if(path)
         {
-            node.setAttribute("path",  path);
+            node.path = path;
         }
         if(w && h)
         {
-            node.setAttribute("coordSize", w + ', ' + h);
+            node.coordSize =  w + ', ' + h;
             node.style.position = "absolute";
             node.style.width = w + "px";
             node.style.height = h + "px";
-            node.setAttribute("width", w);
-            node.setAttribute("height", h);
         }
-        this._fillChangeHandler();
-        this._strokeChangeHandler();
         this.set("path", path);
     },
 

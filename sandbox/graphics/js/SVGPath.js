@@ -59,20 +59,22 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
             val2,
             i,
             path = "",
-            node = this.get("node");
+            node = this.get("node"),
+            left = this._left + this.get("translateX"),
+            top = this._top + this._translateY;
         while(pathArray && pathArray.length > 0)
         {
             segmentArray = pathArray.shift();
             len = segmentArray.length;
             pathType = segmentArray[0];
-            path += " " + pathType + (segmentArray[1] - this._left);
+            path += " " + pathType + (segmentArray[1] - left);
             switch(pathType)
             {
                 case "L" :
                 case "M" :
                     for(i = 2; i < len; ++i)
                     {
-                        val = (i % 2 === 0) ? this._top : this._left;
+                        val = (i % 2 === 0) ? top : left;
                         val = segmentArray[i] - val;
                         path += ", " + val;
                     }
@@ -81,7 +83,7 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
                 case "C" :
                     for(i = 2; i < len; ++i)
                     {
-                        val = (i % 2 === 0) ? this._top : this._left;
+                        val = (i % 2 === 0) ? top : left;
                         val2 = segmentArray[i];
                         val2 -= val;
                         path += " " + val2;
@@ -95,32 +97,26 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
             path += 'z';
         }
         node.setAttribute("d", path);
-        node.setAttribute("transform", "translate(" + this._left + ", " + this._top + ")");
+        this._translate(left, top);
         this.set("path", path);
         this._fillChangeHandler();
         this._strokeChangeHandler();
     },
-
-    /**
-     * @private
-     */
-    _updateHandler: function()
-    {
-        var x = this.get("x"),
-            y = this.get("y");
-        x += this._xTranslate;
-        y += this._yTranslate;
-    },
     
     /**
-     * @private
+     * Applies translate transformation.
+     *
+     * @method translate
+     * @param {Number} x The x-coordinate
+     * @param {Number} y The y-coordinate
      */
-    _xTranslate: 0,
-
-    /**
-     * @private
-     */
-    _yTranslate: 0,
+    translate: function(x, y)
+    {
+        var node = this.get("node");
+        this._translateX = x;
+        this._translateY = y;
+        this._translate(this._left + x, this._top + y);
+    },
 
     /**
      * Completes a drawing operation. 

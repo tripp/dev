@@ -238,7 +238,6 @@
             w = this.get("width") || this._width,
             h = this.get("height") || this._height,
             context = this._context,
-            fill,
             methods = this._methods,
             i = 0,
             lineToMethods = this._lineToMethods,

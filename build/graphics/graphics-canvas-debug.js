@@ -126,6 +126,10 @@ Graphic.prototype = {
     },
 
     /**
+     * Adds a shape instance to the graphic instance.
+     *
+     * @method addShape
+     * @param {Shape} shape The shape instance to be added to the graphic.
      */
     addShape: function(shape)
     {
@@ -1039,7 +1043,6 @@ Y.Drawing = Drawing;
             w = this.get("width") || this._width,
             h = this.get("height") || this._height,
             context = this._context,
-            fill,
             methods = this._methods,
             i = 0,
             lineToMethods = this._lineToMethods,
@@ -1515,4 +1518,4 @@ Y.Path = Y.Base.create("path", Y.Shape, [], {
  });
 
 
-}, '@VERSION@' ,{skinnable:false, requires:['graphics']});
+}, '@VERSION@' ,{requires:['graphics'], skinnable:false});

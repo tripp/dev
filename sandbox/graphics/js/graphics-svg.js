@@ -238,6 +238,12 @@ Graphic.prototype = {
         return node;
     },
 
+    /**
+     * Adds a shape instance to the graphic instance.
+     *
+     * @method addShape
+     * @param {Shape} shape The shape instance to be added to the graphic.
+     */
     addShape: function(shape)
     {
         var node = shape.get("node");

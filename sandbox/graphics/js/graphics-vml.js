@@ -142,8 +142,8 @@ Graphic.prototype = {
      * @param {HTMLElement} parentNode node in which to render the graphics node into.
      */
     render: function(parentNode) {
-        var w = Math.max(parentNode._node.offsetWidth || 0, this._canvasWidth),
-            h = Math.max(parentNode._node.offsetHeight || 0, this._canvasHeight);
+        var w = parseInt(parentNode.getComputedStyle("width"), 10),
+            h = parseInt(parentNode.getComputedStyle("height"), 10);
         parentNode = parentNode || Y.config.doc.body;
         parentNode.appendChild(this.node);
         this.setSize(w, h);
@@ -219,6 +219,12 @@ Graphic.prototype = {
     
     },
 
+    /**
+     * Adds a shape instance to the graphic instance.
+     *
+     * @method addShape
+     * @param {Shape} shape The shape instance to be added to the graphic.
+     */
     addShape: function(shape)
     {
         var node = shape.get("node");

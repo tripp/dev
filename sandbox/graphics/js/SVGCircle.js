@@ -26,6 +26,12 @@
         this.after("y", this._updateHandler);
     },
 
+    /**
+     * Updates the shape.
+     *
+     * @method _draw
+     * @private
+     */
     _draw: function()
     {
         var node = this.get("node"),

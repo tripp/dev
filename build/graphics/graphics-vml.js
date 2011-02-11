@@ -403,18 +403,23 @@ Y.Fill = Fill;
             stroke = this.get("stroke"),
             strokeAlpha,
             dashstyle,
+            dash = "",
+            val,
+            endcap,
             i = 0,
             len;
         if(stroke && stroke.weight && stroke.weight > 0)
         {
             strokeAlpha = stroke.alpha;
             dashstyle = stroke.dashstyle || "none";
+            endcap = stroke.endcap || "flat";
             stroke.color = stroke.color || "#000000";
             stroke.weight = stroke.weight || 1;
             stroke.alpha = Y.Lang.isNumber(strokeAlpha) ? strokeAlpha : 1;
-            node.setAttribute("stroked", true);
-            node.setAttribute("strokeColor", stroke.color);
-            node.setAttribute("strokeWeight", stroke.weight);
+            node.stroked = true;
+            node.endcap = endcap; 
+            node.strokeColor = stroke.color;
+            node.strokeWeight = stroke.weight + "px";
             if(stroke.alpha < 1 || (dashstyle && dashstyle != "none"))
             {
                 if(!this._strokeNode)
@@ -422,23 +427,23 @@ Y.Fill = Fill;
                     this._strokeNode = this._createGraphicNode("stroke");
                     node.appendChild(this._strokeNode);
                 }
-                this._strokeNode.setAttribute("opacity", stroke.alpha);
+                this._strokeNode.opacity = stroke.alpha;
                 if(Y.Lang.isArray(dashstyle))
                 {
+                    dash = [];
                     len = dashstyle.length;
-                    for(; i > len; ++i)
+                    for(i = 0; i < len; ++i)
                     {
-                        dashstyle[i] = Math.round(dashstyle[i] / stroke.weight);
+                        val = dashstyle[i];
+                        dash[i] = val / stroke.weight;
                     }
-                    dashstyle = dashstyle.toString();
-                    dashstyle = dashstyle.replace(/, /g, ",").replace(/,/g, " ");
                 }
-                this._strokeNode.setAttribute("dashstyle", dashstyle);
+                this._strokeNode.dashstyle = dash;
             }
         }
         else
         {
-            node.setAttribute("stroked", false);
+            node.stroked = false;
         }
     },
     
@@ -452,6 +457,7 @@ Y.Fill = Fill;
     {
         var node = this.get("node"),
             fill = this.get("fill"),
+            fillNode,
             fillAlpha;
         if(fill)
         {
@@ -467,23 +473,37 @@ Y.Fill = Fill;
             }
             else
             {
+                fillAlpha = fill.alpha;
                 if(!fill.color)
                 {
-                    node.setAttribute("fill", "none");
+                    node.filled = false;
+                }
+                else if(Y.Lang.isNumber(fillAlpha))
+                {
+                    fillAlpha = Math.max(Math.min(fillAlpha, 1), 0);
+                    if(!this._fillNode)
+                    {
+                        this._fillNode = this._createGraphicNode("fill");
+                        node.appendChild(this._fillNode);
+                    }
+                    fill.alpha = fillAlpha;
+                    this._fillNode.opacity = fillAlpha;
+                    this._fillNode.color = fill.color;
                 }
                 else
                 {
-                    fillAlpha = fill.alpha; 
-                    fill.alpha = Y.Lang.isNumber(fillAlpha) ? fillAlpha : 1;
-                    node.setAttribute("fillColor", fill.color);
-                    node.setAttribute("opacity", fill.alpha);
+                    if(this._fillNode)
+                    {   
+                        node.removeChild(this._fillNode);
+                        this._fillNode = null;
+                    }
+                    node.fillColor = fill.color;
                 }
             }
         }
         else
         {
-            node.setAttribute("fill", "none");
-            node.setAttribute("filled", false);
+            node.filled = false;
         }
     },
 
@@ -496,7 +516,13 @@ Y.Fill = Fill;
      */
     translate: function(x, y)
     {
-        //var node = this.get("node");
+        var node = this.get("node"),
+            w = this.get("width"),
+            h = this.get("height"),
+            coordSize = node.coordSize;
+        x = 0 - (coordSize.x/w * x);
+        y = 0 - (coordSize.y/h * y);
+        node.coordOrigin = x + "," + y;
     },
 
     /**
@@ -529,56 +555,10 @@ Y.Fill = Fill;
       */
      rotate: function(deg, translate)
      {
-        var node = this.get("node"),
-            rot =  deg,
-            absRot = Math.abs(rot),
-            radCon = Math.PI/180,
-            sinRadians = parseFloat(parseFloat(Math.sin(absRot * radCon)).toFixed(8)),
-            cosRadians = parseFloat(parseFloat(Math.cos(absRot * radCon)).toFixed(8)),
-            m11 = cosRadians,
-            m12 = rot > 0 ? -sinRadians : sinRadians,
-            m21 = -m12,
-            m22 = m11,
-            width = this.get("width"),
-            height = this.get("height"),
-            leftOffset = width,
-            topOffset = 0,
-            x = parseInt(node.style.left, 10) || node.getAttribute("x") || 0,    
-            y = parseInt(node.style.top, 10) || node.getAttribute("y") || 0,    
-            filterString = "";
-            node.style.filter = null; 
-            if(rot === 0)
-            {
-                leftOffset = width;
-                topOffset -= height * 0.5;
-            }
-            else if(absRot === 90)
-            {
-                leftOffset = height;
-                topOffset -= width * 0.5;
-            }
-            else if(rot > 0)
-            {
-                leftOffset = (cosRadians * width) + (height * rot/90);
-                topOffset -= (sinRadians * width) + (cosRadians * (height * 0.5));
-            }
-            else
-            {
-                leftOffset = (cosRadians * width) + (absRot/90 * height);
-                topOffset -= cosRadians * (height * 0.5);
-            }
-            node.style.left = (x - leftOffset) + "px";
-            node.style.top = (y + topOffset) + "px";
-            if(rot !== 0)
-            {
-                filterString += 'progid:DXImageTransform.Microsoft.Matrix(M11=' + m11 + ' M12=' + m12 + ' M21=' + m21 + ' M22=' + m22 + ' sizingMethod="auto expand")';
-            }
-            if(filterString)
-            {
-                node.style.filter = filterString;
-            }
+        var node = this.get("node");
+            node.style.rotation = deg;
      },
-
+    
     /**
      * Applies a scale transform
      *
@@ -615,7 +595,6 @@ Y.Fill = Fill;
         node.style.top = y + "px";
         node.style.width = w + "px";
         node.style.height = h + "px";
-        //node.setAttribute("coordSize", w + ', ' + h);
         this._fillChangeHandler();
         this._strokeChangeHandler();
     },
@@ -821,9 +800,11 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
             w = this.get("width"),
             h = this.get("height"),
             path = this.get("path");
+        this._fillChangeHandler();
+        this._strokeChangeHandler();
         if(path)
         {
-            if(fill)
+            if(fill && fill.color)
             {
                 path += ' x';
             }
@@ -834,19 +815,15 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
         }
         if(path)
         {
-            node.setAttribute("path",  path);
+            node.path = path;
         }
         if(w && h)
         {
-            node.setAttribute("coordSize", w + ', ' + h);
+            node.coordSize =  w + ', ' + h;
             node.style.position = "absolute";
             node.style.width = w + "px";
             node.style.height = h + "px";
-            node.setAttribute("width", w);
-            node.setAttribute("height", h);
         }
-        this._fillChangeHandler();
-        this._strokeChangeHandler();
         this.set("path", path);
     },
 
@@ -988,40 +965,6 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
                 this.set("height", h);
                 return val;
             }
-        },
-
-        /**
-         * The x-coordinate based on the center of the circle.
-         *
-         * @attribute cx
-         * @type Number
-         */
-        cx: {
-            lazyAdd: false,
-
-            setter: function(val)
-            {
-                var node = this.get("node");
-                node.setAttribute("cx", val);
-                return val;
-            }
-        },
-
-        /**
-         * The y-coordinate based on the center of the circle.
-         *
-         * @attribute cy
-         * @type Number
-         */
-        cy: {
-            lazyAdd: false,
-
-            setter: function(val)
-            {
-                var node = this.get("node");
-                node.setAttribute("cy", val);
-                return val;
-            }
         }
     }
  });
@@ -1092,40 +1035,6 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
             {   
                 var radius = this.get("radius"),
                 val = radius && radius > 0 ? radius * 2 : 0;
-                return val;
-            }
-        },
-        
-        /**
-         * The x-coordinate based on the center of the circle.
-         *
-         * @attribute cx
-         * @type Number
-         */
-        cx: {
-            lazyAdd: false,
-
-            setter: function(val)
-            {
-                var node = this.get("node");
-                node.setAttribute("cx", val);
-                return val;
-            }
-        },
-
-        /**
-         * The y-coordinate based on the center of the circle.
-         *
-         * @attribute cy
-         * @type Number
-         */
-        cy: {
-            lazyAdd: false,
-
-            setter: function(val)
-            {
-                var node = this.get("node");
-                node.setAttribute("cy", val);
                 return val;
             }
         }
@@ -1275,8 +1184,8 @@ Graphic.prototype = {
      * @param {HTMLElement} parentNode node in which to render the graphics node into.
      */
     render: function(parentNode) {
-        var w = Math.max(parentNode._node.offsetWidth || 0, this._canvasWidth),
-            h = Math.max(parentNode._node.offsetHeight || 0, this._canvasHeight);
+        var w = parseInt(parentNode.getComputedStyle("width"), 10),
+            h = parseInt(parentNode.getComputedStyle("height"), 10);
         parentNode = parentNode || Y.config.doc.body;
         parentNode.appendChild(this.node);
         this.setSize(w, h);
@@ -1352,6 +1261,12 @@ Graphic.prototype = {
     
     },
 
+    /**
+     * Adds a shape instance to the graphic instance.
+     *
+     * @method addShape
+     * @param {Shape} shape The shape instance to be added to the graphic.
+     */
     addShape: function(shape)
     {
         var node = shape.get("node");
@@ -1379,4 +1294,4 @@ Y.Graphic = Graphic;
 
 
 
-}, '@VERSION@' ,{skinnable:false, requires:['graphics']});
+}, '@VERSION@' ,{requires:['graphics'], skinnable:false});
