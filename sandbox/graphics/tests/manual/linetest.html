@@ -1,0 +1,158 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<style>
+/*Supplemental: CSS for the YUI distribution*/
+#custom-doc { width: 95%; min-width: 950px; }
+#pagetitle {background-image: url(../../assets/bg_hd.gif);}
+#mycanvas {
+    width:500px;
+    height:350px;
+}
+BODY {
+    background-color: #9aa
+}
+</style>
+<link rel="stylesheet" type="text/css" href="../../../../../build/cssfonts/fonts-min.css"-->
+<!-- BEGIN EXAMPLE CODE -->	
+</head>		
+<body class="yui3-skin-sam">
+<script type="text/javascript" src="../../../../../build/yui/yui.js"></script>
+<div style="z-index:10;position:absolute;left:500px;top:20px">
+<button type="button" id="loadgraphics">Load Graphics</button><br/>
+<button type="button" id="redrawPath">Redraw Graphics</button><br/>
+</div>
+<div id="mycanvas" style="backround-color:#9aa;overflow:visible;position:absolute;top:50px;left:100px;border:1px solid"></div>
+<script type="text/javascript">            
+    YUI({filter:"raw",
+            "modules":
+            {
+                "graphics": {
+                    "requires": ["dom", "event-custom", "event-mouseenter", "base"],
+                    "plugins": {
+                        "graphics-svg": {
+                            "condition": {
+                                "test": function(Y) {
+                                    return (document.implementation.hasFeature("http://www.w3.org/TR/SVG11/feature#BasicStructure", "1.1"));
+                                }, 
+                                "trigger": "graphics"
+                            }
+                        },
+                        "graphics-canvas": {
+                            "condition": {
+                                "trigger": "graphics",
+                                "test": function(Y) {
+                                    var canvas = document.createElement("canvas");
+                                    return (!document.implementation.hasFeature("http://www.w3.org/TR/SVG11/feature#BasicStructure", "1.1") && (canvas && canvas.getContext && canvas.getContext("2d")));
+                                } 
+                            }
+                        },
+                        "graphics-vml": {
+                            "condition": {
+                                "trigger": "graphics",
+                                "test": function(Y) {
+                                var canvas = document.createElement("canvas");
+                                return (!document.implementation.hasFeature("http://www.w3.org/TR/SVG11/feature#BasicStructure", "1.1") && (!canvas || !canvas.getContext || !canvas.getContext("2d")));
+                                } 
+                            }
+                        } 
+                    }
+                }
+            }
+    }).use('dd-drag', 'graphics', function (Y) 
+    {
+    var myline;
+        function loadGraphics(e)
+        {
+            //var myline,
+              var  mygraphic = new Y.Graphic();
+            mygraphic.render(Y.one("#mycanvas"));
+            myline = new Y.Path({stroke: {
+                weight: 1,
+                color: "#ff0000",
+                alpha: 1,
+                dashstyle: [3, 4]
+            },
+            fill: {
+                color: null,
+            }});
+            mygraphic.addShape(myline);
+            myline.moveTo(-190, -190);
+            
+            myline.lineTo(60, 120);
+            //myline.lineTo.apply(myline, [[0, 0], [10, 20], [10, 150], [40, 300], [50, 100], [60, 180]]);
+            myline.end();
+            myrect = new Y.Rect({stroke: {
+                    color:"#000",
+                    weight: 1
+                },
+                fill: {
+                    color: "#fc0"
+                },
+                width:50,
+                height:40
+            });
+            var linedrag = new Y.DD.Drag({
+                node: myline.get("node")
+            });
+            mygraphic.addShape(myrect);
+            myrect.rotate(45);
+            myrect.translate(50, 50);
+            var myellipse = new Y.Ellipse({stroke: {
+                    color: "#ddd",
+                    weight: 2
+                },
+                fill: {
+                    color:"#f00"
+                },
+                width: 100,
+                height: 30,
+                x:100,
+                y:50
+            });
+            mygraphic.addShape(myellipse);
+            var dd = new Y.DD.Drag({
+                node:mygraphic.node
+            });
+            var mycircle = new Y.Circle({stroke: {
+                    color:"#ff0",
+                    weight: 1
+                },
+                fill: {
+                    color:"#00f"
+                },
+                radius: 12
+            });
+            mygraphic.addShape(mycircle);
+            var circleDrag = new Y.DD.Drag({
+                node: mycircle.get("node")
+            });
+            mycircle.translate(80, 80);
+            
+            var dd = new Y.DD.Drag({
+                node: myrect.get("node")
+            });
+
+            var ellipsedrag = new Y.DD.Drag({
+                node: myellipse.get("node")
+            });
+            myline.translate(100, 100);
+        }
+
+        function redrawPath(e)
+        {
+            myline.clear();
+            myline.moveTo(-190, -190);
+            myline.lineTo.apply(myline, [[0, 0], [10, 20], [10, 150], [40, 300], [50, 100], [60, 180]]);
+            myline.end();
+
+        }
+        Y.on("click", loadGraphics, "#loadgraphics");
+        Y.on("click", redrawPath, "#redrawPath");
+
+
+  });
+</script>
+</body>
+</html>
