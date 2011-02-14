@@ -992,7 +992,7 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
             val,
             val2,
             i,
-            path = "",
+            path = this.get("path"),
             node = this.get("node"),
             left = this._left + this.get("translateX"),
             top = this._top + this._translateY;
@@ -1060,10 +1060,22 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
     end: function()
     {
         this._draw();
+    },
+
+    /**
+     * Clears the path.
+     *
+     * @method clear
+     */
+    clear: function()
+    {
+        this.set("path", "");
     }
 }, {
     ATTRS: {
-        path: {}
+        path: {
+            value: ""
+        }
     }
 });
 /**
@@ -1539,4 +1551,4 @@ Y.Graphic = Graphic;
 
 
 
-}, '@VERSION@' ,{requires:['graphics'], skinnable:false});
+}, '@VERSION@' ,{skinnable:false, requires:['graphics']});

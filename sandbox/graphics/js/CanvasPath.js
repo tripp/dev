@@ -21,6 +21,14 @@ Y.Path = Y.Base.create("path", Y.Shape, [], {
     _addListeners: function() {},
 
     /**
+     * @private
+     */
+    _draw: function()
+    {
+        this._paint();
+    },
+
+    /**
      * Completes a drawing operation. 
      *
      * @method end

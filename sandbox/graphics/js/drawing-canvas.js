@@ -212,19 +212,6 @@ Drawing.prototype = {
     },
     
     /**
-     * Clears the graphics object.
-     *
-     * @method clear
-     */
-    clear: function() {
-        var node = this.node;
-        this._initProps();
-        node.setAttribute("width", node.getAttribute("width"));
-        node.setAttribute("height", node.getAttribute("height"));
-        return this;
-    },
-    
-    /**
      * Draws a bezier curve.
      *
      * @method curveTo
@@ -484,7 +471,6 @@ Drawing.prototype = {
      */
     end: function() {
         this._paint();
-        this._initProps();
         return this;
     },
 
@@ -496,27 +482,18 @@ Drawing.prototype = {
      */
     _initProps: function() {
         var context = this._context;
-        
-        context.fillStyle = 'rgba(0, 0, 0, 1)'; // use transparent when no fill
-        context.lineWidth = 6;
-        //context.lineCap = 'butt';
-        context.lineJoin = 'miter';
-        context.miterLimit = 3;
-        this._strokeStyle = 'rgba(0, 0, 0, 1)';
         this._methods = [];
+        this._lineToMethods = [];
+        this._xcoords = [0];
+        this._ycoords = [0];
         this._width = 0;
         this._height = 0;
         this._left = 0;
         this._top = 0;
         this._right = 0;
         this._bottom = 0;
-        //this._shape = null;
         this._x = 0;
         this._y = 0;
-        this._fillType = null;
-        this._stroke = null;
-        this._bitmapFill = null;
-        this._drawingComplete = false;
     },
    
     /**

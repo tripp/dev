@@ -1,1 +1,1 @@
-YUI.add("graphics",function(A){},"@VERSION@",{requires:["dom","event-custom","event-mouseenter","base"]});
+YUI.add("graphics",function(a){},"@VERSION@",{requires:["dom","event-custom","event-mouseenter","base"]});

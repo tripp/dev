@@ -120,17 +120,24 @@
     {
         var color = fill.color,
             alpha = fill.alpha;
-        if (alpha) 
+        if(color)
         {
-           color = this._2RGBA(color, alpha);
-        } 
-        else 
-        {
-            color = this._2RGB(color);
-        }
+            if (alpha) 
+            {
+               color = this._2RGBA(color, alpha);
+            } 
+            else 
+            {
+                color = this._2RGB(color);
+            }
 
-        this._fillColor = color;
-        this._fillType = 'solid';
+            this._fillColor = color;
+            this._fillType = 'solid';
+        }
+        else
+        {
+            this._fillColor = null;
+        }
     },
 
     /**
@@ -139,13 +146,13 @@
      * @method translate
      * @param {Number} x The x-coordinate
      * @param {Number} y The y-coordinate
+     * @protected
      */
     translate: function(x, y)
     {
-        var ctx = this._context;
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.restore();
+        var node = this.get("node"),
+            translate = "translate(" + x + "px, " + y + "px)";
+        this._updateTransform("translate", /translate\(.*\)/, translate);
     },
 
     /**
@@ -176,15 +183,8 @@
       */
      rotate: function(deg, translate)
      {
-        var node = this.get("node");
-        node.style.MozTransformOrigin =  "0 0";
-        node.style.MozTransform = "rotate(" + deg + "deg)";
-        node.style.webkitTransformOrigin = "0 0";
-        node.style.webkitTransform = "rotate(" + deg + "deg)";
-        node.style.msTransformOrigin =  "0 0";
-        node.style.msTransform = "rotate(" + deg + "deg)";
-        node.style.OTransformOrigin =  "0 0";
-        node.style.OTransform = "rotate(" + deg + "deg)";
+        var rotate = "rotate(" + deg + "deg)";
+        this._updateTransform("rotate", /rotate\(.*\)/, rotate);
      },
 
     /**
@@ -209,6 +209,35 @@
     /**
      * @private
      */
+    _updateTransform: function(type, test, val)
+    {
+        var node = this.get("node"),
+            transform = node.style.MozTransform || node.style.webkitTransform || node.style.msTransform || node.style.OTransform;
+
+        if(transform && transform.length > 0)
+        {
+            if(transform.indexOf(type) > -1)
+            {
+                transform = transform.replace(test, val);
+            }
+            else
+            {
+                transform += " " + val;
+            }
+        }
+        else
+        {
+            transform = val;
+        }
+        node.style.MozTransform = transform;
+        node.style.webkitTransform = transform;
+        node.style.msTransform = transform;
+        node.style.OTransform = transform;
+    },
+
+    /**
+     * @private
+     */
     _updateHandler: function(e)
     {
         this._draw();
@@ -219,6 +248,7 @@
      */
     _draw: function()
     {
+        this.clear();
         this._paint();
     },
 
@@ -350,6 +380,19 @@
         }
         
         context.moveTo(xEnd, yEnd);
+    },
+
+    /**
+     * Clears the graphics object.
+     *
+     * @method clear
+     */
+    clear: function() {
+        var w = this.get("width"),
+            h = this.get("height");
+        this._initProps();
+        this._context.clearRect(0, 0, w, h);
+        return this;
     }
  }, {
     ATTRS: {

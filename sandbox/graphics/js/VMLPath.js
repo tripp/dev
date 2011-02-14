@@ -64,6 +64,16 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
     end: function()
     {
         this._draw();
+    },
+
+    /**
+     * Clears the path.
+     *
+     * @method clear
+     */
+    clear: function()
+    {
+        this.set("path", "");
     }
 }, {
     ATTRS: {

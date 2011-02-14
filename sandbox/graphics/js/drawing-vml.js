@@ -168,6 +168,7 @@ Drawing.prototype = {
             this._path += ' ' + Math.round(args[i][0]) + ', ' + Math.round(args[i][1]);
             this._trackSize.apply(this, args[i]);
         }
+        var path = this._path;
         return this;
     },
 

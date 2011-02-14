@@ -393,19 +393,6 @@ Drawing.prototype = {
     },
     
     /**
-     * Clears the graphics object.
-     *
-     * @method clear
-     */
-    clear: function() {
-        var node = this.node;
-        this._initProps();
-        node.setAttribute("width", node.getAttribute("width"));
-        node.setAttribute("height", node.getAttribute("height"));
-        return this;
-    },
-    
-    /**
      * Draws a bezier curve.
      *
      * @method curveTo
@@ -665,7 +652,6 @@ Drawing.prototype = {
      */
     end: function() {
         this._paint();
-        this._initProps();
         return this;
     },
 
@@ -677,27 +663,18 @@ Drawing.prototype = {
      */
     _initProps: function() {
         var context = this._context;
-        
-        context.fillStyle = 'rgba(0, 0, 0, 1)'; // use transparent when no fill
-        context.lineWidth = 6;
-        //context.lineCap = 'butt';
-        context.lineJoin = 'miter';
-        context.miterLimit = 3;
-        this._strokeStyle = 'rgba(0, 0, 0, 1)';
         this._methods = [];
+        this._lineToMethods = [];
+        this._xcoords = [0];
+        this._ycoords = [0];
         this._width = 0;
         this._height = 0;
         this._left = 0;
         this._top = 0;
         this._right = 0;
         this._bottom = 0;
-        //this._shape = null;
         this._x = 0;
         this._y = 0;
-        this._fillType = null;
-        this._stroke = null;
-        this._bitmapFill = null;
-        this._drawingComplete = false;
     },
    
     /**
@@ -925,17 +902,24 @@ Y.Drawing = Drawing;
     {
         var color = fill.color,
             alpha = fill.alpha;
-        if (alpha) 
+        if(color)
         {
-           color = this._2RGBA(color, alpha);
-        } 
-        else 
-        {
-            color = this._2RGB(color);
-        }
+            if (alpha) 
+            {
+               color = this._2RGBA(color, alpha);
+            } 
+            else 
+            {
+                color = this._2RGB(color);
+            }
 
-        this._fillColor = color;
-        this._fillType = 'solid';
+            this._fillColor = color;
+            this._fillType = 'solid';
+        }
+        else
+        {
+            this._fillColor = null;
+        }
     },
 
     /**
@@ -944,13 +928,13 @@ Y.Drawing = Drawing;
      * @method translate
      * @param {Number} x The x-coordinate
      * @param {Number} y The y-coordinate
+     * @protected
      */
     translate: function(x, y)
     {
-        var ctx = this._context;
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.restore();
+        var node = this.get("node"),
+            translate = "translate(" + x + "px, " + y + "px)";
+        this._updateTransform("translate", /translate\(.*\)/, translate);
     },
 
     /**
@@ -981,15 +965,8 @@ Y.Drawing = Drawing;
       */
      rotate: function(deg, translate)
      {
-        var node = this.get("node");
-        node.style.MozTransformOrigin =  "0 0";
-        node.style.MozTransform = "rotate(" + deg + "deg)";
-        node.style.webkitTransformOrigin = "0 0";
-        node.style.webkitTransform = "rotate(" + deg + "deg)";
-        node.style.msTransformOrigin =  "0 0";
-        node.style.msTransform = "rotate(" + deg + "deg)";
-        node.style.OTransformOrigin =  "0 0";
-        node.style.OTransform = "rotate(" + deg + "deg)";
+        var rotate = "rotate(" + deg + "deg)";
+        this._updateTransform("rotate", /rotate\(.*\)/, rotate);
      },
 
     /**
@@ -1014,6 +991,35 @@ Y.Drawing = Drawing;
     /**
      * @private
      */
+    _updateTransform: function(type, test, val)
+    {
+        var node = this.get("node"),
+            transform = node.style.MozTransform || node.style.webkitTransform || node.style.msTransform || node.style.OTransform;
+
+        if(transform && transform.length > 0)
+        {
+            if(transform.indexOf(type) > -1)
+            {
+                transform = transform.replace(test, val);
+            }
+            else
+            {
+                transform += " " + val;
+            }
+        }
+        else
+        {
+            transform = val;
+        }
+        node.style.MozTransform = transform;
+        node.style.webkitTransform = transform;
+        node.style.msTransform = transform;
+        node.style.OTransform = transform;
+    },
+
+    /**
+     * @private
+     */
     _updateHandler: function(e)
     {
         this._draw();
@@ -1024,6 +1030,7 @@ Y.Drawing = Drawing;
      */
     _draw: function()
     {
+        this.clear();
         this._paint();
     },
 
@@ -1155,6 +1162,19 @@ Y.Drawing = Drawing;
         }
         
         context.moveTo(xEnd, yEnd);
+    },
+
+    /**
+     * Clears the graphics object.
+     *
+     * @method clear
+     */
+    clear: function() {
+        var w = this.get("width"),
+            h = this.get("height");
+        this._initProps();
+        this._context.clearRect(0, 0, w, h);
+        return this;
     }
  }, {
     ATTRS: {
@@ -1311,6 +1331,14 @@ Y.Path = Y.Base.create("path", Y.Shape, [], {
      * @private
      */
     _addListeners: function() {},
+
+    /**
+     * @private
+     */
+    _draw: function()
+    {
+        this._paint();
+    },
 
     /**
      * Completes a drawing operation. 
@@ -1518,4 +1546,4 @@ Y.Path = Y.Base.create("path", Y.Shape, [], {
  });
 
 
-}, '@VERSION@' ,{requires:['graphics'], skinnable:false});
+}, '@VERSION@' ,{skinnable:false, requires:['graphics']});

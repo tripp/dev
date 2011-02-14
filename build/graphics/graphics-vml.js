@@ -169,6 +169,7 @@ Drawing.prototype = {
             this._path += ' ' + Math.round(args[i][0]) + ', ' + Math.round(args[i][1]);
             this._trackSize.apply(this, args[i]);
         }
+        var path = this._path;
         return this;
     },
 
@@ -835,6 +836,16 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
     end: function()
     {
         this._draw();
+    },
+
+    /**
+     * Clears the path.
+     *
+     * @method clear
+     */
+    clear: function()
+    {
+        this.set("path", "");
     }
 }, {
     ATTRS: {
@@ -1294,4 +1305,4 @@ Y.Graphic = Graphic;
 
 
 
-}, '@VERSION@' ,{requires:['graphics'], skinnable:false});
+}, '@VERSION@' ,{skinnable:false, requires:['graphics']});
