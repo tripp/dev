@@ -994,8 +994,10 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
             i,
             path = this.get("path"),
             node = this.get("node"),
-            left = this._left + this.get("translateX"),
-            top = this._top + this._translateY;
+            tx = this.get("translateX"),
+            ty = this.get("translateY"),
+            left = this._left,
+            top = this._top;
         while(pathArray && pathArray.length > 0)
         {
             segmentArray = pathArray.shift();
@@ -1031,7 +1033,7 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
             path += 'z';
         }
         node.setAttribute("d", path);
-        this._translate(left, top);
+        this._translate(left + tx, top + ty);
         this.set("path", path);
         this._fillChangeHandler();
         this._strokeChangeHandler();
