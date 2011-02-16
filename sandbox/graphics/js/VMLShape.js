@@ -25,6 +25,8 @@
     _getNode: function()
     {
         var node = this._createGraphicNode();
+        node.setAttribute("id", this.get("id"));
+        Y.one(node).addClass("yui3-" + this.name);
         return node;
     },
 
@@ -312,6 +314,26 @@
         },
 
         /**
+         * Unique id for class instance.
+         *
+         * @attribute id
+         * @type String
+         */
+        id: {
+            valueFn: function()
+            {
+                return Y.guid();
+            },
+
+            setter: function(val)
+            {
+                var node = this.get("node");
+                node.setAttribute("id", val);
+                return val;
+            }
+        },
+        
+        /**
          * 
          * @attribute width
          */
@@ -360,10 +382,14 @@
         },
 
         /**
-         * Contains information about the fill of the shape.
+         * Contains information about the fill of the shape. 
+         *  <dl>
+         *      <dt>color</dt><dd>The color of the fill.</dd>
+         *      <dt>alpha</dt><dd>Number between 0 and 1 that indicates the opacity of the fill. The default value is 1.</dd>
+         *  </dl>
          *
          * @attribute fill
-         * @type Object
+         * @type Object 
          */
         fill: {
             setter: function(val)
@@ -375,6 +401,13 @@
 
         /**
          * Contains information about the stroke of the shape.
+         *  <dl>
+         *      <dt>color</dt><dd>The color of the stroke.</dd>
+         *      <dt>weight</dt><dd>Number that indicates the width of the stroke.</dd>
+         *      <dt>alpha</dt><dd>Number between 0 and 1 that indicates the opacity of the stroke. The default value is 1.</dd>
+         *      <dt>dashstyle</dt>Indicates whether to draw a dashed stroke. When set to "none", a solid stroke is drawn. When set to an array, the first index indicates the
+         *      length of the dash. The second index indicates the length of gap.
+         *  </dl>
          *
          * @attribute stroke
          * @type Object
@@ -391,7 +424,7 @@
             
             setter: function(val)
             {
-                var tmpl = this.get("fill") || this._getAttrCfg("fill").defaultValue;
+                var tmpl = this.get("stroke") || this._getAttrCfg("stroke").defaultValue;
                 return (val) ? Y.merge(tmpl, val) : null;
             }
         },

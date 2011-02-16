@@ -28,7 +28,9 @@ Graphic.prototype = {
         config = config || {};
         var w = config.width || 0,
             h = config.height || 0;
+        this.id = Y.guid();
         this.node = this._createGraphics();
+        this.node.setAttribute("id", this.id);
         this.setSize(w, h);
         if(config.render)
         {
@@ -182,8 +184,8 @@ Graphic.prototype = {
      */
     render: function(render) {
         var parentNode = Y.one(render),
-            w = parentNode.get("width") || parentNode.get("offsetWidth"),
-            h = parentNode.get("height") || parentNode.get("offsetHeight");
+            w = parseInt(parentNode.getComputedStyle("width"), 10),
+            h = parseInt(parentNode.getComputedStyle("height"), 10);
         parentNode = parentNode || Y.config.doc.body;
         parentNode.appendChild(this.node);
         this.setSize(w, h);
@@ -252,7 +254,24 @@ Graphic.prototype = {
         {
             this._graphicsList = [];
         }
+        if(!this._shapes)
+        {
+            this._shapes = {};
+        }
         this._graphicsList.push(node);
+        this._shapes[shape.get("id")] = shape;
+    },
+
+    /**
+     * Returns a shape based on the id of its dom node.
+     *
+     * @method getShape
+     * @param {String} id Dom id of the shape's node attribute.
+     * @return Shape
+     */
+    getShape: function(id)
+    {
+        return this._shapes[id];
     }
 };
 Y.Graphic = Graphic;

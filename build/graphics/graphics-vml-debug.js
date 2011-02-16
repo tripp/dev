@@ -378,6 +378,8 @@ Y.Fill = Fill;
     _getNode: function()
     {
         var node = this._createGraphicNode();
+        node.setAttribute("id", this.get("id"));
+        Y.one(node).addClass("yui3-" + this.name);
         return node;
     },
 
@@ -665,6 +667,26 @@ Y.Fill = Fill;
         },
 
         /**
+         * Unique id for class instance.
+         *
+         * @attribute id
+         * @type String
+         */
+        id: {
+            valueFn: function()
+            {
+                return Y.guid();
+            },
+
+            setter: function(val)
+            {
+                var node = this.get("node");
+                node.setAttribute("id", val);
+                return val;
+            }
+        },
+        
+        /**
          * 
          * @attribute width
          */
@@ -713,10 +735,14 @@ Y.Fill = Fill;
         },
 
         /**
-         * Contains information about the fill of the shape.
+         * Contains information about the fill of the shape. 
+         *  <dl>
+         *      <dt>color</dt><dd>The color of the fill.</dd>
+         *      <dt>alpha</dt><dd>Number between 0 and 1 that indicates the opacity of the fill. The default value is 1.</dd>
+         *  </dl>
          *
          * @attribute fill
-         * @type Object
+         * @type Object 
          */
         fill: {
             setter: function(val)
@@ -728,6 +754,13 @@ Y.Fill = Fill;
 
         /**
          * Contains information about the stroke of the shape.
+         *  <dl>
+         *      <dt>color</dt><dd>The color of the stroke.</dd>
+         *      <dt>weight</dt><dd>Number that indicates the width of the stroke.</dd>
+         *      <dt>alpha</dt><dd>Number between 0 and 1 that indicates the opacity of the stroke. The default value is 1.</dd>
+         *      <dt>dashstyle</dt>Indicates whether to draw a dashed stroke. When set to "none", a solid stroke is drawn. When set to an array, the first index indicates the
+         *      length of the dash. The second index indicates the length of gap.
+         *  </dl>
          *
          * @attribute stroke
          * @type Object
@@ -744,7 +777,7 @@ Y.Fill = Fill;
             
             setter: function(val)
             {
-                var tmpl = this.get("fill") || this._getAttrCfg("fill").defaultValue;
+                var tmpl = this.get("stroke") || this._getAttrCfg("stroke").defaultValue;
                 return (val) ? Y.merge(tmpl, val) : null;
             }
         },
@@ -1074,7 +1107,9 @@ Graphic.prototype = {
         config = config || {};
         var w = config.width || 0,
             h = config.height || 0;
+        this.id = Y.guid();
         this.node = this._createGraphic();
+        this.node.setAttribute("id", this.id);
         this.setSize(w, h);
         this._initProps();
     },
@@ -1287,7 +1322,24 @@ Graphic.prototype = {
         {
             this._graphicsList = [];
         }
+        if(!this._shapes)
+        {
+            this._shapes = {};
+        }
         this._graphicsList.push(node);
+        this._shapes[shape.get("id")] = shape;
+    },
+
+    /**
+     * Returns a shape based on the id of its dom node.
+     *
+     * @method getShape
+     * @param {String} id Dom id of the shape's node attribute.
+     * @return Shape
+     */
+    getShape: function(id)
+    {
+        return this._shapes[id];
     },
 
     /**

@@ -1,144 +1,5 @@
 YUI.add('graphics-svg', function(Y) {
 
-var UID = '_yuid',
-    NODE_NAME = 'nodeName',
-    _setStyle = Y.DOM.setStyle,
-    _addClass = Y.Node.prototype.addClass,
-    node_toString = Y.Node.prototype.toString,
-    nodeList_toString = Y.NodeList.prototype.toString;
-
-Y.DOM.setStyle = function(node, att, val, style) { 
-    if((att == "left" || att == "top") && node.tagName.indexOf("svg") > -1)
-    {   
-        var shape = node.tagName.split(":")[1],
-            translate,
-            transform,
-            x,
-            y,
-            attr;
-        if(shape == "path")
-        {
-            if(att == "left")
-            {
-                x = parseInt(val, 10);
-                y = node.getAttribute("y");
-                node.setAttribute("x", x);
-            }
-            else if(att == "top")
-            {
-                x = node.getAttribute("x");
-                y = parseInt(val, 10);
-                node.setAttribute("y", y);
-            }
-            translate = "translate(" + x + ", " + y + ")";
-            transform = node.getAttribute("transform");
-            if(transform && transform.length > 0)
-            {
-                if(transform.indexOf("translate") > -1)
-                {
-                    transform = transform.replace(/translate\(.*\)/, translate);
-                }
-                else
-                {
-                    transform += " " + translate;
-                }
-            }
-            else
-            {
-                transform = translate;
-            }
-            node.setAttribute("transform", transform);
-        }
-        else
-        {
-            switch(shape)
-            {
-                case "rect" :
-                    attr = (att == "left") ? "x" : "y";
-                break;
-                case "circle" :
-                case "ellipse" :
-                    attr = (att == "left") ? "cx" : "cy";
-                break;
-            }
-            node.setAttribute(attr, parseInt(val, 10));
-        }
-    }
-    _setStyle.apply(this, arguments);
-};
-
-Y.Node.prototype.addClass = function(className) {
-   var node = this._node;
-   if(node.tagName.indexOf("svg") > -1)
-   {    
-        if(node.className && node.className.baseVal)
-        {
-            node.className.baseVal = Y.Lang.trim([node.className.baseVal, className].join(' '));
-        }
-        else
-        {
-            node.setAttribute("class", className);
-        }
-    }
-    else
-    {
-        _addClass.apply(this, arguments);
-    }
-    return this;
-};
-
-Y.Node.prototype.toString = function() {
-    var node = this._node,
-        str;
-    if(node && node.className && node.className.baseVal)
-    {
-        if(typeof node.className.baseVal == "string")
-        {
-            str = node[NODE_NAME] + "." + node.className.baseVal.replace(' ', '.');
-        }
-        else
-        {
-            str = this[UID] + ': not bound to any nodes';
-        }
-    }
-    else
-    {
-        str = node_toString.apply(this, arguments);
-    }
-    return str;
-};
-
-Y.NodeList.prototype.toString = function() {
-    var nodes = this._nodes,
-        node,
-        str;
-    if (nodes && nodes[0]) {
-        node = nodes[0];
-    }    
-    if(node && node.className && node.className.baseVal)
-    {
-        if(typeof node.className.baseVal == "string")
-        {
-            str = node[NODE_NAME];
-            if(node.id)
-            {
-                str += "#" + node.id;
-            }
-            str += "." + node.className.baseVal.replace(' ', '.');
-        }
-        else
-        {
-            str = this[UID] + ': not bound to any nodes';
-        }
-    }
-    else
-    {
-        str = nodeList_toString.apply(this, arguments);
-    }
-    return str;
-};
-
-Y.NodeList.importMethod(Y.Node.prototype, ['addClass']);
 function Drawing(){}
 
 Drawing.prototype = {
@@ -521,6 +382,8 @@ Y.Drawing = Drawing;
         var node = document.createElementNS("http://www.w3.org/2000/svg", "svg:" + this._type),
             v = this.get("pointerEvents") || "none";
         node.setAttribute("pointer-events", v);
+        node.setAttribute("class", "yui3-" + this.name);
+        node.setAttribute("id", this.get("id"));
         return node;
     },
 
@@ -536,8 +399,8 @@ Y.Drawing = Drawing;
         this.after("fillChange", this._updateHandler);
         this.after("widthChange", this._updateHandler);
         this.after("heightChange", this._updateHandler);
-        this.after("x", this._updateHandler);
-        this.after("y", this._updateHandler);
+        this.after("xChange", this._updateHandler);
+        this.after("yChange", this._updateHandler);
     },
     
     /**
@@ -790,12 +653,34 @@ Y.Drawing = Drawing;
         },
 
         /**
+         * Unique id for class instance.
+         *
+         * @attribute id
+         * @type String
+         */
+        id: {
+            valueFn: function()
+            {
+                return Y.guid();
+            },
+
+            setter: function(val)
+            {
+                var node = this.get("node");
+                node.setAttribute("id", val);
+                return val;
+            }
+        },
+
+        /**
          * Indicates the x position of shape.
          *
          * @attribute x
          * @type Number
          */
-        x: {},
+        x: {
+            value: 0
+        },
 
         /**
          * Indicates the y position of shape.
@@ -803,7 +688,9 @@ Y.Drawing = Drawing;
          * @attribute y
          * @type Number
          */
-        y: {},
+        y: {
+            value: 0
+        },
 
         /**
          * 
@@ -834,10 +721,14 @@ Y.Drawing = Drawing;
         },
 
         /**
-         * Contains information about the fill of the shape.
+         * Contains information about the fill of the shape. 
+         *  <dl>
+         *      <dt>color</dt><dd>The color of the fill.</dd>
+         *      <dt>alpha</dt><dd>Number between 0 and 1 that indicates the opacity of the fill. The default value is 1.</dd>
+         *  </dl>
          *
          * @attribute fill
-         * @type Object
+         * @type Object 
          */
         fill: {
             setter: function(val)
@@ -849,6 +740,13 @@ Y.Drawing = Drawing;
 
         /**
          * Contains information about the stroke of the shape.
+         *  <dl>
+         *      <dt>color</dt><dd>The color of the stroke.</dd>
+         *      <dt>weight</dt><dd>Number that indicates the width of the stroke.</dd>
+         *      <dt>alpha</dt><dd>Number between 0 and 1 that indicates the opacity of the stroke. The default value is 1.</dd>
+         *      <dt>dashstyle</dt>Indicates whether to draw a dashed stroke. When set to "none", a solid stroke is drawn. When set to an array, the first index indicates the
+         *      length of the dash. The second index indicates the length of gap.
+         *  </dl>
          *
          * @attribute stroke
          * @type Object
@@ -1322,7 +1220,9 @@ Graphic.prototype = {
         config = config || {};
         var w = config.width || 0,
             h = config.height || 0;
+        this.id = Y.guid();
         this.node = this._createGraphics();
+        this.node.setAttribute("id", this.id);
         this.setSize(w, h);
         if(config.render)
         {
@@ -1476,8 +1376,8 @@ Graphic.prototype = {
      */
     render: function(render) {
         var parentNode = Y.one(render),
-            w = parentNode.get("width") || parentNode.get("offsetWidth"),
-            h = parentNode.get("height") || parentNode.get("offsetHeight");
+            w = parseInt(parentNode.getComputedStyle("width"), 10),
+            h = parseInt(parentNode.getComputedStyle("height"), 10);
         parentNode = parentNode || Y.config.doc.body;
         parentNode.appendChild(this.node);
         this.setSize(w, h);
@@ -1546,7 +1446,24 @@ Graphic.prototype = {
         {
             this._graphicsList = [];
         }
+        if(!this._shapes)
+        {
+            this._shapes = {};
+        }
         this._graphicsList.push(node);
+        this._shapes[shape.get("id")] = shape;
+    },
+
+    /**
+     * Returns a shape based on the id of its dom node.
+     *
+     * @method getShape
+     * @param {String} id Dom id of the shape's node attribute.
+     * @return Shape
+     */
+    getShape: function(id)
+    {
+        return this._shapes[id];
     }
 };
 Y.Graphic = Graphic;

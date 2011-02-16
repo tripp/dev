@@ -20,7 +20,9 @@ Graphic.prototype = {
         config = config || {};
         var w = config.width || 0,
             h = config.height || 0;
+        this.id = Y.guid();
         this.node = this._createGraphic();
+        this.node.setAttribute("id", this.id);
         this.setSize(w, h);
         this._initProps();
     },
@@ -233,7 +235,24 @@ Graphic.prototype = {
         {
             this._graphicsList = [];
         }
+        if(!this._shapes)
+        {
+            this._shapes = {};
+        }
         this._graphicsList.push(node);
+        this._shapes[shape.get("id")] = shape;
+    },
+
+    /**
+     * Returns a shape based on the id of its dom node.
+     *
+     * @method getShape
+     * @param {String} id Dom id of the shape's node attribute.
+     * @return Shape
+     */
+    getShape: function(id)
+    {
+        return this._shapes[id];
     },
 
     /**

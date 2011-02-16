@@ -1248,10 +1248,14 @@ Y.Drawing = Drawing;
         },
 
         /**
-         * Contains information about the fill of the shape.
+         * Contains information about the fill of the shape. 
+         *  <dl>
+         *      <dt>color</dt><dd>The color of the fill.</dd>
+         *      <dt>alpha</dt><dd>Number between 0 and 1 that indicates the opacity of the fill. The default value is 1.</dd>
+         *  </dl>
          *
          * @attribute fill
-         * @type Object
+         * @type Object 
          */
         fill: {
             setter: function(val)
@@ -1265,6 +1269,13 @@ Y.Drawing = Drawing;
 
         /**
          * Contains information about the stroke of the shape.
+         *  <dl>
+         *      <dt>color</dt><dd>The color of the stroke.</dd>
+         *      <dt>weight</dt><dd>Number that indicates the width of the stroke.</dd>
+         *      <dt>alpha</dt><dd>Number between 0 and 1 that indicates the opacity of the stroke. The default value is 1.</dd>
+         *      <dt>dashstyle</dt>Indicates whether to draw a dashed stroke. When set to "none", a solid stroke is drawn. When set to an array, the first index indicates the
+         *      length of the dash. The second index indicates the length of gap.
+         *  </dl>
          *
          * @attribute stroke
          * @type Object
