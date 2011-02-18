@@ -1557,4 +1557,4 @@ Y.Path = Y.Base.create("path", Y.Shape, [], {
  });
 
 
-}, '@VERSION@' ,{requires:['graphics'], skinnable:false});
+}, '@VERSION@' ,{skinnable:false, requires:['graphics']});

@@ -259,6 +259,8 @@
         var node = this.get("node");
         node.setAttribute("width", this.get("width"));
         node.setAttribute("height", this.get("height"));
+        node.setAttribute("x", this.get("x"));
+        node.setAttribute("y", this.get("y"));
         node.style.left = this.get("x") + "px";
         node.style.top = this.get("y") + "px";
         this._fillChangeHandler();

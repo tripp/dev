@@ -94,7 +94,7 @@ BODY {
             });
             
             mygraphic.addShape(myrect);
-            myrect.rotate(45);
+            //myrect.rotate(45);
             myellipse = new Y.Ellipse({stroke: {
                     color: "#ddd",
                     weight: 2
@@ -126,11 +126,24 @@ BODY {
         function redrawPath(e)
         {
             mycircle.translate(50, 50);
+            mycircle.set("x", 300);
+            myrect.set("y", 200);
             myline.translate(100, 100);
             myline.clear();
             myline.moveTo(-190, -190);
             myline.lineTo.apply(myline, [[0, 0], [10, 20], [10, 150], [40, 300], [50, 100], [60, 180]]);
             myline.end();
+            myellipse.set("x", 200);
+            myellipse.set("y", 200);
+        
+            myline.clear();
+            myline.moveTo(-190, -190);
+            myline.lineTo.apply(myline, [[0, 0], [10, 20], [10, 150], [40, 300], [50, 100], [60, 180]]);
+            myline.end();
+            mycircle.translate(-5, -5);
+            //myrect.rotate(45);
+            myrect.set("x", 100);
+           // myellipse.rotate(45);
         }
         Y.on("click", loadGraphics, "#loadgraphics");
         Y.on("click", redrawPath, "#redrawPath");
