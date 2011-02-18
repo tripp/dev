@@ -249,6 +249,7 @@ Graphic.prototype = {
     addShape: function(shape)
     {
         var node = shape.get("node");
+        shape.set("graphic", this);
         this.node.appendChild(node);
         if(!this._graphicsList)
         {
@@ -260,6 +261,7 @@ Graphic.prototype = {
         }
         this._graphicsList.push(node);
         this._shapes[shape.get("id")] = shape;
+        this.updateCoordSpace();
     },
 
     /**
@@ -272,7 +274,47 @@ Graphic.prototype = {
     getShape: function(id)
     {
         return this._shapes[id];
-    }
+    },
+
+    /**
+     * Updates the size of the graphics container and the position of its children.
+     *
+     * @method updateCoordSpace
+     */
+    updateCoordSpace: function(e)
+    {
+        var bounds,
+            i = 0,
+            shape,
+            shapes = this._graphicsList,
+            len = shapes.length;
+        for(; i < len; ++i)
+        {
+            shape = this.getShape(shapes[i].getAttribute("id"));
+            bounds = shape.getBounds();
+            this._left = Math.min(this._left, bounds.left);
+            this._top = Math.min(this._top, bounds.top);
+            this._right = Math.max(this._right, bounds.right);
+            this._bottom = Math.max(this._bottom, bounds.bottom);
+        }
+        this._width = this._right - this._left;
+        this._height = this._bottom - this._top;
+        this.node.setAttribute("width", this._width);
+        this.node.setAttribute("height", this._height);
+        this.node.style.width = this._width + "px";
+        this.node.style.height = this._height + "px";
+        this.node.style.left = this._left + "px";
+        this.node.style.top = this._top + "px";
+        this.node.setAttribute("viewBox", "" + this._left + " " + this._top + " " + this._width + " " + this._height + "");
+    },
+
+    _left: 0,
+
+    _right: 0,
+
+    _top: 0,
+
+    _bottom: 0
 };
 Y.Graphic = Graphic;
 

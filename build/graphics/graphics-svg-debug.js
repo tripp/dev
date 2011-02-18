@@ -367,8 +367,8 @@ Y.Drawing = Drawing;
      */
     initializer: function()
     {
+        this.publish("shapeUpdate");
         this._addListeners();
-        this._draw();
     },
    
     /**
@@ -395,6 +395,7 @@ Y.Drawing = Drawing;
      */
     _addListeners: function()
     {
+        this.after("initializedChange", this._updateHandler);
         this.after("strokeChange", this._updateHandler);
         this.after("fillChange", this._updateHandler);
         this.after("widthChange", this._updateHandler);
@@ -493,6 +494,8 @@ Y.Drawing = Drawing;
      */
     translate: function(x, y)
     {
+        this._translateX = x;
+        this._translateY = y;
         this._translate.apply(this, arguments);
     },
 
@@ -594,6 +597,7 @@ Y.Drawing = Drawing;
             transform = val;
         }
         node.setAttribute("transform", transform);
+        this.fire("shapeUpdate");
     },
 
     /**
@@ -622,6 +626,7 @@ Y.Drawing = Drawing;
     _updateHandler: function(e)
     {
         this._draw();
+        this.fire("shapeUpdate");
     },
     
     /**
@@ -636,7 +641,35 @@ Y.Drawing = Drawing;
      *
      * @private
      */
-    _translateY: 0
+    _translateY: 0,
+
+    /**
+     * Returns the bounds for a shape.
+     *
+     * @method getBounds
+     * @return Object
+     */
+    getBounds: function()
+    {
+        var w = this.get("width"),
+            h = this.get("height"),
+            stroke = this.get("stroke"),
+            x = this.get("x"),
+            y = this.get("y"),
+            wt = 0,
+            tx = this.get("translateX"),
+            ty = this.get("translateY"),
+            bounds = {};
+        if(stroke && stroke.weight)
+        {
+            wt = stroke.weight;
+        }
+        bounds.left = x - wt + tx;
+        bounds.top = y - wt + ty;
+        bounds.right = x + w + wt + tx;
+        bounds.bottom = y + h + wt + ty;
+        return bounds;
+    }
  }, {
     ATTRS: {
         /**
@@ -803,7 +836,8 @@ Y.Drawing = Drawing;
 
             setter: function(val)
             {
-                this.transform(val, this.get("translateY"));
+                this._translateX = val;
+                this._transform(val, this._translateY);
                 return val;
             }
         },
@@ -823,7 +857,21 @@ Y.Drawing = Drawing;
 
             setter: function(val)
             {
-                this.transform(this.get("translateX"), val);
+                this._translateY = val;
+                this._transform(this._translateX, val);
+                return val;
+            }
+        },
+
+        /**
+         * Reference to the container Graphic.
+         *
+         * @attribute graphic
+         * @type Graphic
+         */
+        graphic: {
+            setter: function(val){
+                this.after("shapeUpdate", Y.bind(val.updateCoordSpace, val));
                 return val;
             }
         }
@@ -831,8 +879,7 @@ Y.Drawing = Drawing;
 });
 
 /**
- * The Path class creates a graphic object with editable 
- * properties.
+ * The Path class creates a shape through the use of drawing methods.
  *
  * @class Path
  * @extends Shape
@@ -876,7 +923,7 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
     _type: "path",
 
     /**
-     * Draws the graphic.
+     * Draws the path.
      *
      * @method _draw
      * @private
@@ -936,7 +983,7 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
         this._fillChangeHandler();
         this._strokeChangeHandler();
     },
-    
+   
     /**
      * Applies translate transformation.
      *
@@ -949,9 +996,10 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
         var node = this.get("node");
         this._translateX = x;
         this._translateY = y;
+        this._translate(x, y);
         this._translate(this._left + x, this._top + y);
     },
-
+    
     /**
      * Completes a drawing operation. 
      *
@@ -960,6 +1008,7 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
     end: function()
     {
         this._draw();
+        this.fire("shapeUpdate");
     },
 
     /**
@@ -969,12 +1018,57 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
      */
     clear: function()
     {
+        this._left = 0;
+        this._right = 0;
+        this._top = 0;
+        this._bottom = 0;
         this.set("path", "");
+    },
+
+    /**
+     * Returns the bounds for a shape.
+     *
+     * @method getBounds
+     * @return Object
+     */
+    getBounds: function()
+    {
+        var wt = 0,
+            bounds = {},
+            stroke = this.get("stroke"),
+            tx = this.get("translateX"),
+            ty = this.get("translateY");
+        if(stroke && stroke.weight)
+        {
+            wt = stroke.weight;
+        }
+        bounds.left = this._left - wt - tx;
+        bounds.top = this._top - wt - ty;
+        bounds.right = (this._right - this._left) + wt - tx;
+        bounds.bottom = (this._bottom - this._top) + wt - ty;
+        return bounds;
     }
 }, {
     ATTRS: {
         path: {
             value: ""
+        },
+
+        width: {
+            getter: function()
+            {
+                var rt = this._right,
+                    lft = this._left,
+                    val = Math.max(this._right - this._left, 0);
+                return val;
+            }
+        },
+
+        height: {
+            getter: function()
+            {
+                return Math.max(this._bottom - this._top, 0);
+            }
         }
     }
 });
@@ -1116,11 +1210,8 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
      */
     _addListeners: function()
     {
-        this.after("strokeChange", this._updateHandler);
-        this.after("fillChange", this._updateHandler);
+        Y.Circle.superclass._addListeners.apply(this);
         this.after("radiusChange", this._updateHandler);
-        this.after("x", this._updateHandler);
-        this.after("y", this._updateHandler);
     },
 
     /**
@@ -1179,14 +1270,7 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
          * @attribute radius
          */
         radius: {
-            lazyAdd: false,
-
-            setter: function(val)
-            {
-                var node = this.get("node");
-                node.setAttribute("r", val);
-                return val;
-            }
+            value: 0
         }
     }
  });
@@ -1441,6 +1525,7 @@ Graphic.prototype = {
     addShape: function(shape)
     {
         var node = shape.get("node");
+        shape.set("graphic", this);
         this.node.appendChild(node);
         if(!this._graphicsList)
         {
@@ -1452,6 +1537,7 @@ Graphic.prototype = {
         }
         this._graphicsList.push(node);
         this._shapes[shape.get("id")] = shape;
+        this.updateCoordSpace();
     },
 
     /**
@@ -1464,10 +1550,50 @@ Graphic.prototype = {
     getShape: function(id)
     {
         return this._shapes[id];
-    }
+    },
+
+    /**
+     * Updates the size of the graphics container and the position of its children.
+     *
+     * @method updateCoordSpace
+     */
+    updateCoordSpace: function(e)
+    {
+        var bounds,
+            i = 0,
+            shape,
+            shapes = this._graphicsList,
+            len = shapes.length;
+        for(; i < len; ++i)
+        {
+            shape = this.getShape(shapes[i].getAttribute("id"));
+            bounds = shape.getBounds();
+            this._left = Math.min(this._left, bounds.left);
+            this._top = Math.min(this._top, bounds.top);
+            this._right = Math.max(this._right, bounds.right);
+            this._bottom = Math.max(this._bottom, bounds.bottom);
+        }
+        this._width = this._right - this._left;
+        this._height = this._bottom - this._top;
+        this.node.setAttribute("width", this._width);
+        this.node.setAttribute("height", this._height);
+        this.node.style.width = this._width + "px";
+        this.node.style.height = this._height + "px";
+        this.node.style.left = this._left + "px";
+        this.node.style.top = this._top + "px";
+        this.node.setAttribute("viewBox", "" + this._left + " " + this._top + " " + this._width + " " + this._height + "");
+    },
+
+    _left: 0,
+
+    _right: 0,
+
+    _top: 0,
+
+    _bottom: 0
 };
 Y.Graphic = Graphic;
 
 
 
-}, '@VERSION@' ,{skinnable:false, requires:['graphics']});
+}, '@VERSION@' ,{requires:['graphics'], skinnable:false});

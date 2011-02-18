@@ -12,8 +12,8 @@
      */
     initializer: function()
     {
+        this.publish("shapeUpdate");
         this._addListeners();
-        this._draw();
     },
    
     /**
@@ -40,6 +40,7 @@
      */
     _addListeners: function()
     {
+        this.after("initializedChange", this._updateHandler);
         this.after("strokeChange", this._updateHandler);
         this.after("fillChange", this._updateHandler);
         this.after("widthChange", this._updateHandler);
@@ -138,6 +139,8 @@
      */
     translate: function(x, y)
     {
+        this._translateX = x;
+        this._translateY = y;
         this._translate.apply(this, arguments);
     },
 
@@ -239,6 +242,7 @@
             transform = val;
         }
         node.setAttribute("transform", transform);
+        this.fire("shapeUpdate");
     },
 
     /**
@@ -267,6 +271,7 @@
     _updateHandler: function(e)
     {
         this._draw();
+        this.fire("shapeUpdate");
     },
     
     /**
@@ -281,7 +286,35 @@
      *
      * @private
      */
-    _translateY: 0
+    _translateY: 0,
+
+    /**
+     * Returns the bounds for a shape.
+     *
+     * @method getBounds
+     * @return Object
+     */
+    getBounds: function()
+    {
+        var w = this.get("width"),
+            h = this.get("height"),
+            stroke = this.get("stroke"),
+            x = this.get("x"),
+            y = this.get("y"),
+            wt = 0,
+            tx = this.get("translateX"),
+            ty = this.get("translateY"),
+            bounds = {};
+        if(stroke && stroke.weight)
+        {
+            wt = stroke.weight;
+        }
+        bounds.left = x - wt + tx;
+        bounds.top = y - wt + ty;
+        bounds.right = x + w + wt + tx;
+        bounds.bottom = y + h + wt + ty;
+        return bounds;
+    }
  }, {
     ATTRS: {
         /**
@@ -448,7 +481,8 @@
 
             setter: function(val)
             {
-                this.transform(val, this.get("translateY"));
+                this._translateX = val;
+                this._transform(val, this._translateY);
                 return val;
             }
         },
@@ -468,7 +502,21 @@
 
             setter: function(val)
             {
-                this.transform(this.get("translateX"), val);
+                this._translateY = val;
+                this._transform(this._translateX, val);
+                return val;
+            }
+        },
+
+        /**
+         * Reference to the container Graphic.
+         *
+         * @attribute graphic
+         * @type Graphic
+         */
+        graphic: {
+            setter: function(val){
+                this.after("shapeUpdate", Y.bind(val.updateCoordSpace, val));
                 return val;
             }
         }

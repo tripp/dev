@@ -19,11 +19,8 @@
      */
     _addListeners: function()
     {
-        this.after("strokeChange", this._updateHandler);
-        this.after("fillChange", this._updateHandler);
+        Y.Circle.superclass._addListeners.apply(this);
         this.after("radiusChange", this._updateHandler);
-        this.after("x", this._updateHandler);
-        this.after("y", this._updateHandler);
     },
 
     /**
@@ -82,14 +79,7 @@
          * @attribute radius
          */
         radius: {
-            lazyAdd: false,
-
-            setter: function(val)
-            {
-                var node = this.get("node");
-                node.setAttribute("r", val);
-                return val;
-            }
+            value: 0
         }
     }
  });

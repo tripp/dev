@@ -118,22 +118,21 @@ BODY {
                 fill: {
                     color:"#00f"
                 },
-                radius: 12
+                radius: 12,
+                x: -5,
+                y: -5
             });
             mygraphic.addShape(mycircle);
-            
         }
 
         function redrawPath(e)
         {
-            myrect.translate(50, 50);
-            mycircle.translate(80, 80);
+            mycircle.translate(50, 50);
             myline.translate(100, 100);
             myline.clear();
             myline.moveTo(-190, -190);
             myline.lineTo.apply(myline, [[0, 0], [10, 20], [10, 150], [40, 300], [50, 100], [60, 180]]);
             myline.end();
-
         }
         Y.on("click", loadGraphics, "#loadgraphics");
         Y.on("click", redrawPath, "#redrawPath");
