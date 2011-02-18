@@ -547,7 +547,10 @@ Y.Drawing = Drawing;
       */
      rotate: function(deg, translate)
      {
-        var rotate = "rotate(" + deg + ")";
+        var w = this.get("width") * 0.5,
+            h = this.get("height") * 0.5;
+        translate = translate || w + "," + h;
+        var rotate = "rotate(" + deg + "," + translate + ")";
         this._updateTransform("rotate", /rotate\(.*\)/, rotate);
      },
 

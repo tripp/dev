@@ -3,7 +3,7 @@
  *
  * @class Shape
  */
- Y.Shape = Y.Base.create("shape", Y.Base, [Y.Fill], {
+ Y.Shape = Y.Base.create("shape", Y.Base, [], {
     /**
      * Initializes the shape
      *
@@ -71,26 +71,23 @@
             node.endcap = endcap; 
             node.strokeColor = stroke.color;
             node.strokeWeight = stroke.weight + "px";
-            if(stroke.alpha < 1 || (dashstyle && dashstyle != "none"))
+            if(!this._strokeNode)
             {
-                if(!this._strokeNode)
-                {
-                    this._strokeNode = this._createGraphicNode("stroke");
-                    node.appendChild(this._strokeNode);
-                }
-                this._strokeNode.opacity = stroke.alpha;
-                if(Y.Lang.isArray(dashstyle))
-                {
-                    dash = [];
-                    len = dashstyle.length;
-                    for(i = 0; i < len; ++i)
-                    {
-                        val = dashstyle[i];
-                        dash[i] = val / stroke.weight;
-                    }
-                }
-                this._strokeNode.dashstyle = dash;
+                this._strokeNode = this._createGraphicNode("stroke");
+                node.appendChild(this._strokeNode);
             }
+            this._strokeNode.opacity = stroke.alpha;
+            if(Y.Lang.isArray(dashstyle))
+            {
+                dash = [];
+                len = dashstyle.length;
+                for(i = 0; i < len; ++i)
+                {
+                    val = dashstyle[i];
+                    dash[i] = val / stroke.weight;
+                }
+            }
+            this._strokeNode.dashstyle = dash;
         }
         else
         {
@@ -112,44 +109,31 @@
             fillAlpha;
         if(fill)
         {
-            if(fill.type === "linear" || fill.type === "radial")
+            fillAlpha = fill.alpha;
+            if(!fill.color)
             {
-                this.beginGradientFill(fill);
-                //node.appendChild(this._getFill());
+                node.filled = false;
             }
-            else if(fill.type === "bitmap")
+            else if(Y.Lang.isNumber(fillAlpha))
             {
-                this.beginBitmapFill(fill);
-                //node.appendChild(this._getFill());
+                fillAlpha = Math.max(Math.min(fillAlpha, 1), 0);
+                if(!this._fillNode)
+                {
+                    this._fillNode = this._createGraphicNode("fill");
+                    node.appendChild(this._fillNode);
+                }
+                fill.alpha = fillAlpha;
+                this._fillNode.opacity = fillAlpha;
+                this._fillNode.color = fill.color;
             }
             else
             {
-                fillAlpha = fill.alpha;
-                if(!fill.color)
-                {
-                    node.filled = false;
+                if(this._fillNode)
+                {   
+                    node.removeChild(this._fillNode);
+                    this._fillNode = null;
                 }
-                else if(Y.Lang.isNumber(fillAlpha))
-                {
-                    fillAlpha = Math.max(Math.min(fillAlpha, 1), 0);
-                    if(!this._fillNode)
-                    {
-                        this._fillNode = this._createGraphicNode("fill");
-                        node.appendChild(this._fillNode);
-                    }
-                    fill.alpha = fillAlpha;
-                    this._fillNode.opacity = fillAlpha;
-                    this._fillNode.color = fill.color;
-                }
-                else
-                {
-                    if(this._fillNode)
-                    {   
-                        node.removeChild(this._fillNode);
-                        this._fillNode = null;
-                    }
-                    node.fillColor = fill.color;
-                }
+                node.fillColor = fill.color;
             }
         }
         else
