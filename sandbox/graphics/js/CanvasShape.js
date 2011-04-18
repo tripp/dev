@@ -5,6 +5,118 @@
  */
  Y.Shape = Y.Base.create("shape", Y.Base, [Y.Drawing], {
     /**
+     * Add a class name to each node.
+     *
+     * @method addClass
+     * @param {String} className the class name to add to the node's class attribute 
+     */
+    addClass: function(className)
+    {
+        var node = Y.one(this.get("node"));
+        node.addClass(className);
+    },
+    
+    /**
+     * Removes a class name from each node.
+     *
+     * @method removeClass
+     * @param {String} className the class name to remove from the node's class attribute
+     */
+    removeClass: function(className)
+    {
+        var node = Y.one(this.get("node"));
+        node.removeClass(className);
+    },
+
+    /**
+     * Gets the current position of the node in page coordinates.
+     *
+     * @method getXY
+     * @return Array The XY position of the shape.
+     */
+    getXY: function()
+    {
+        var graphic = this.get("graphic"),
+            parentXY = graphic.getXY(),
+            x = this.get("x"),
+            y = this.get("y");
+        return [parentXY[0] + x, parentXY[1] + y];
+    },
+
+    /**
+     * Set the position of the shape in page coordinates, regardless of how the node is positioned.
+     *
+     * @method setXY
+     * @param {Array} Contains X & Y values for new position (coordinates are page-based)
+     */
+    setXY: function(xy)
+    {
+        var graphic = this.get("graphic"),
+            parentXY = graphic.getXY();
+        this.set("x", xy[0] - parentXY[0]);
+        this.set("y", xy[1] - parentXY[1]);
+    },
+
+    /**
+     * Determines whether the node is an ancestor of another HTML element in the DOM hierarchy. 
+     *
+     * @method contains
+     * @param {SVGShape | HTMLElement} needle The possible node or descendent
+     * @return Boolean Whether or not this shape is the needle or its ancestor.
+     */
+    contains: function(needle)
+    {
+        return needle === this;
+    },
+
+    /**
+     * Test if the supplied node matches the supplied selector.
+     *
+     * @method test
+     * @param {String} selector The CSS selector to test against.
+     * @return Boolean Wheter or not the shape matches the selector.
+     */
+    test: function(selector)
+    {
+        return Y.one(this.get("node")).test(selector);
+    },
+
+    /**
+     * Value function for fill attribute
+     *
+     * @private
+     * @method _getDefaultFill
+     * @return Object
+     */
+    _getDefaultFill: function() {
+        return {
+            type: "solid",
+            cx: 0.5,
+            cy: 0.5,
+            fx: 0.5,
+            fy: 0.5,
+            r: 0.5
+        };
+    },
+
+    /**
+     * Value function for stroke attribute
+     *
+     * @private
+     * @method _getDefaultStroke
+     * @return Object
+     */
+    _getDefaultStroke: function() 
+    {
+        return {
+            weight: 1,
+            dashstyle: "none",
+            color: "#000",
+            alpha: 1.0
+        };
+    },
+
+    /**
      * Left edge of the path
      *
      * @private
@@ -59,9 +171,30 @@
      */
     _getNode: function()
     {
-        var node = Y.config.doc.createElement('canvas');
+        var node = Y.config.doc.createElement('canvas'),
+            id = this.get("id");
         this._context = node.getContext('2d');
+        node.setAttribute("class", "yui3-" + this.name);
+        node.setAttribute("id", id);
+        id = "#" + id;
+        Y.on('mousedown', Y.bind(this._nodeEventDispatcher, this), id);
+        Y.on('mouseup',  Y.bind(this._nodeEventDispatcher, this), id);
+        Y.on('mouseover', Y.bind(this._nodeEventDispatcher, this), id);
+        Y.on('mousemove',  Y.bind(this._nodeEventDispatcher, this), id);
+        Y.on('mouseout', Y.bind(this._nodeEventDispatcher, this), id);
+        Y.on('mouseenter',  Y.bind(this._nodeEventDispatcher, this), id);
+        Y.on('mouseleave',  Y.bind(this._nodeEventDispatcher, this), id);
+        Y.on('click',  Y.bind(this._nodeEventDispatcher, this), id);
         return node;
+    },
+
+    /**
+     * @private
+     */
+    _nodeEventDispatcher: function(e)
+    {
+        e.preventDefault();
+        this.fire(e.type, e);
     },
 
     /**
@@ -89,7 +222,10 @@
         var color = stroke.color,
             weight = stroke.weight,
             alpha = stroke.alpha,
+            linejoin = stroke.linejoin || "round",
+            linecap = stroke.linecap || "butt",
             dashstyle = stroke.dashstyle;
+        this._miterlimit = null;
         this._dashstyle = (dashstyle && Y.Lang.isArray(dashstyle) && dashstyle.length > 1) ? dashstyle : null;
         this._strokeWeight = weight;
 
@@ -108,6 +244,20 @@
         {
             this._strokeStyle = color;
         }
+        this._linecap = linecap;
+        if(linejoin == "round" || linejoin == "square")
+        {
+            this._linejoin = linejoin;
+        }
+        else
+        {
+            linejoin = parseInt(linejoin, 10);
+            if(Y.Lang.isNumber(linejoin))
+            {
+                this._miterlimit =  Math.max(linejoin, 1);
+                this._linejoin = "miter";
+            }
+        }
     },
     
     /**
@@ -118,13 +268,21 @@
      */
     _setFillProps: function(fill)
     {
-        var color = fill.color,
-            alpha = fill.alpha;
-        if(color)
+        var isNumber = Y.Lang.isNumber,
+            color = fill.color,
+            opacity,
+            type = fill.type;
+        if(type == "linear" || type == "radial")
         {
-            if (alpha) 
+            this._fillType = type;
+        }
+        else if(color)
+        {
+            opacity = fill.alpha;
+            if (isNumber(opacity)) 
             {
-               color = this._2RGBA(color, alpha);
+                opacity = Math.max(0, Math.min(1, opacity));
+                color = this._2RGBA(color, opacity);
             } 
             else 
             {
@@ -150,8 +308,7 @@
      */
     translate: function(x, y)
     {
-        var node = this.get("node"),
-            translate = "translate(" + x + "px, " + y + "px)";
+        var translate = "translate(" + x + "px, " + y + "px)";
         this._updateTransform("translate", /translate\(.*\)/, translate);
     },
 
@@ -175,17 +332,36 @@
      {
      },
 
-     /**
-      * Applies a rotation.
-      *
-      * @method rotate
-      * @param
-      */
-     rotate: function(deg, translate)
-     {
+    /**
+     * @private
+     */
+    _rotation: 0,
+
+    /**
+     * Applies a rotation.
+     *
+     * @method rotate
+     * @param
+     */
+    rotate: function(deg)
+    {
         var rotate = "rotate(" + deg + "deg)";
+        this._rotation = deg;
         this._updateTransform("rotate", /rotate\(.*\)/, rotate);
-     },
+    },
+
+    /**
+     * An array of x, y values which indicates the transformOrigin in which to rotate the shape. Valid values range between 0 and 1 representing a 
+     * fraction of the shape's corresponding bounding box dimension. The default value is [0.5, 0.5].
+     *
+     * @attribute transformOrigin
+     * @type Array
+     */
+    _transformOrigin: function(x, y)
+    {
+        var node = this.get("node");
+        node.style.MozTransformOrigin = (100 * x) + "% " + (100 * y) + "%";
+    },
 
     /**
      * Applies a scale transform
@@ -212,7 +388,8 @@
     _updateTransform: function(type, test, val)
     {
         var node = this.get("node"),
-            transform = node.style.MozTransform || node.style.webkitTransform || node.style.msTransform || node.style.OTransform;
+            transform = node.style.MozTransform || node.style.webkitTransform || node.style.msTransform || node.style.OTransform,
+            transformOrigin = this.get("transformOrigin");
 
         if(transform && transform.length > 0)
         {
@@ -229,6 +406,11 @@
         {
             transform = val;
         }
+        transformOrigin = (100 * transformOrigin[0]) + "% " + (100 * transformOrigin[1]) + "%";
+        node.style.MozTransformOrigin = transformOrigin; 
+        node.style.webkitTransformOrigin = transformOrigin;
+        node.style.msTransformOrigin = transformOrigin;
+        node.style.OTransformOrigin = transformOrigin;
         node.style.MozTransform = transform;
         node.style.webkitTransform = transform;
         node.style.msTransform = transform;
@@ -248,7 +430,6 @@
      */
     _draw: function()
     {
-        this.clear();
         this._paint();
     },
 
@@ -268,68 +449,99 @@
             w = this.get("width") || this._width,
             h = this.get("height") || this._height,
             context = this._context,
-            methods = this._methods,
+            methods = [],
+            cachedMethods = this._methods.concat(),
             i = 0,
-            lineToMethods = this._lineToMethods,
-            lineToLen = lineToMethods ? lineToMethods.length : 0,
+            j,
             method,
             args,
-            len = methods ? methods.length : 0;
-        node.setAttribute("width", w);
-        node.setAttribute("height", h);
-        if(!len || len < 1)
-        {
-            return;
-        }
-        for(; i < lineToLen; ++i)
-        {
-            args = lineToMethods[i];
-            args[1] = args[1] - this._left;
-            args[2] = args[2] - this._top;
-        }
-        context.beginPath();
-        for(i = 0; i < len; ++i)
-        {
-            args = methods[i];
-            if(args && args.length > 0)
+            len = 0;
+       this.clear();
+       if(this._methods)
+       {
+            len = cachedMethods.length;
+            if(!len || len < 1)
             {
-                method = args.shift();
-                if(method)
+                return;
+            }
+            for(; i < len; ++i)
+            {
+                methods[i] = cachedMethods[i].concat();
+                args = methods[i];
+                for(j = 1; j < args.length; ++j)
                 {
-                    if(method && method == "lineTo" && this._dashstyle)
+                    if(j % 2 === 0)
                     {
-                        args.unshift(this._xcoords[i] - this._left, this._ycoords[i] - this._top);
-                        this._drawDashedLine.apply(this, args);
+                        args[j] = args[j] - this._top;
                     }
                     else
                     {
-                        context[method].apply(context, args); 
+                        args[j] = args[j] - this._left;
                     }
                 }
             }
-        }
-
-
-        if (this._fillType) {
-            context.fillStyle = this._fillColor;
-            context.closePath();
-        }
-
-        if (this._fillType) {
-            context.fill();
-        }
-
-        if (this._stroke) {
-            if(this._strokeWeight)
+            node.setAttribute("width", w);
+            node.setAttribute("height", h);
+            context.beginPath();
+            for(i = 0; i < len; ++i)
             {
-                context.lineWidth = this._strokeWeight;
+                args = methods[i];
+                if(args && args.length > 0)
+                {
+                    method = args.shift();
+                    if(method)
+                    {
+                        if(method && method == "lineTo" && this._dashstyle)
+                        {
+                            args.unshift(this._xcoords[i] - this._left, this._ycoords[i] - this._top);
+                            this._drawDashedLine.apply(this, args);
+                        }
+                        else
+                        {
+                            context[method].apply(context, args); 
+                        }
+                    }
+                }
             }
-            context.strokeStyle = this._strokeStyle;
-            context.stroke();
+
+
+            if (this._fillType) 
+            {
+                if(this._fillType == "linear")
+                {
+                    context.fillStyle = this._getLinearGradient();
+                }
+                else if(this._fillType == "radial")
+                {
+                    context.fillStyle = this._getRadialGradient();
+                }
+                else
+                {
+                    context.fillStyle = this._fillColor;
+                }
+                context.closePath();
+                context.fill();
+            }
+
+            if (this._stroke) {
+                if(this._strokeWeight)
+                {
+                    context.lineWidth = this._strokeWeight;
+                }
+                context.lineCap = this._linecap;
+                context.lineJoin = this._linejoin;
+                if(this._miterlimit)
+                {
+                    context.miterLimit = this._miterlimit;
+                }
+                context.strokeStyle = this._strokeStyle;
+                context.stroke();
+            }
+            this._drawingComplete = true;
+            this._clearAndUpdateCoords();
+            this._updateNodePosition();
+            this._methods = cachedMethods;
         }
-        this._drawingComplete = true;
-        this._clearAndUpdateCoords();
-        this._updateNodePosition();
     },
 
     /**
@@ -397,6 +609,38 @@
  }, {
     ATTRS: {
         /**
+         * An array of x, y values which indicates the transformOrigin in which to rotate the shape. Valid values range between 0 and 1 representing a 
+         * fraction of the shape's corresponding bounding box dimension. The default value is [0.5, 0.5].
+         *
+         * @attribute transformOrigin
+         * @type Array
+         */
+        transformOrigin: {
+            valueFn: function()
+            {
+                return [0.5, 0.5];
+            }
+        },
+
+        /**
+         * The rotation (in degrees) of the shape.
+         *
+         * @attribute rotation
+         * @type Number
+         */
+        rotation: {
+            setter: function(val)
+            {
+                this.rotate(val);
+            },
+
+            getter: function()
+            {
+                return this._rotation;
+            }
+        },
+
+        /**
          * Dom node of the shape
          *
          * @attribute node
@@ -407,6 +651,19 @@
             readOnly: true,
 
             valueFn: "_getNode" 
+        },
+
+        /**
+         * Unique id for class instance.
+         *
+         * @attribute id
+         * @type String
+         */
+        id: {
+            valueFn: function()
+            {
+                return Y.guid();
+            }
         },
 
         /**
@@ -476,12 +733,22 @@
          * @type Object 
          */
         fill: {
+            valueFn: "_getDefaultFill",
+            
             setter: function(val)
             {
-                var tmpl = this.get("fill") || this._getAttrCfg("fill").defaultValue;
-                val = (val) ? Y.merge(tmpl, val) : null;
-                this._setFillProps(val);
-                return val;
+                var fill,
+                    tmpl = this.get("fill") || this._getDefaultFill();
+                fill = (val) ? Y.merge(tmpl, val) : null;
+                if(fill && fill.color)
+                {
+                    if(fill.color === undefined || fill.color == "none")
+                    {
+                        fill.color = null;
+                    }
+                }
+                this._setFillProps(fill);
+                return fill;
             }
         },
 
@@ -499,18 +766,11 @@
          * @type Object
          */
         stroke: {
-            valueFn: function() {
-                return {
-                    weight: 1,
-                    dashstyle: null,
-                    color: "#000",
-                    alpha: 1.0
-                };
-            },
+            valueFn: "_getDefaultStroke",
 
             setter: function(val)
             {
-                var tmpl = this.get("stroke") || this._getAttrCfg("stroke").defaultValue;
+                var tmpl = this.get("stroke") || this._getDefaultStroke();
                 val = (val) ? Y.merge(tmpl, val) : null;
                 this._setStrokeProps(val);
                 return val;
@@ -535,6 +795,15 @@
          */
         pointerEvents: {
             value: "visiblePainted"
+        },
+
+        /**
+         * Reference to the container Graphic.
+         *
+         * @attribute graphic
+         * @type Graphic
+         */
+        graphic: {
         }
     }
 });

@@ -623,9 +623,10 @@ VMLGraphics.prototype = {
             shape.filled = false;
         }
         if (this._stroke && this._strokeWeight > 0) {
+            shape.stroked = true;
             shape.strokeColor = this._strokeColor;
             shape.strokeWeight = this._strokeWeight;
-            if(Y.Lang.isNumber(this._strokeOpacity) && this._strokeOpacity < 1)
+            if(Y.Lang.isNumber(this._strokeOpacity) && this._strokeOpacity < 1 && this._strokeOpacity >= 0)
             {    
                 strokeNode = this._createGraphicNode("stroke");
                 shape.appendChild(strokeNode);
@@ -688,7 +689,7 @@ VMLGraphics.prototype = {
         }
         for (prop in fillProps) {
             if(fillProps.hasOwnProperty(prop)) {
-                fill.setAttribute(prop, fillProps[prop]);
+                fill[prop] = fillProps[prop];
            }
         }
         fill.colors = colorstring.substr(2);

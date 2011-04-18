@@ -16,12 +16,11 @@
      */
     _draw: function()
     {
+        this.clear();
         var x = this.get("x"),
             y = this.get("y"),
             w = this.get("width"),
-            h = this.get("height"),
-            fill = this.get("fill"),
-            stroke = this.get("stroke");
+            h = this.get("height");
         this.drawRect(x, y, w, h);
         this._paint();
     }

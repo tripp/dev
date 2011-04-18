@@ -17,9 +17,7 @@
     _draw: function()
     {
         var w = this.get("width"),
-            h = this.get("height"),
-            fill = this.get("fill"),
-            stroke = this.get("stroke");
+            h = this.get("height");
         this.drawEllipse(0, 0, w, h);
         this._paint();
     }

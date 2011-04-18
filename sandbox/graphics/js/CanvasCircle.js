@@ -16,9 +16,7 @@
      */
     _draw: function()
     {
-        var radius = this.get("radius"),
-            fill = this.get("fill"),
-            stroke = this.get("stroke");
+        var radius = this.get("radius");
         if(radius)
         {
             this.drawCircle(0, 0, radius);

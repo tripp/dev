@@ -372,6 +372,120 @@ Y.Drawing = Drawing;
     },
    
     /**
+     * Add a class name to each node.
+     *
+     * @method addClass
+     * @param {String} className the class name to add to the node's class attribute 
+     */
+    addClass: function(className)
+    {
+        var node = this.get("node");
+        node.className.baseVal = Y.Lang.trim([node.className.baseVal, className].join(' '));
+    },
+
+    /**
+     * Removes a class name from each node.
+     *
+     * @method removeClass
+     * @param {String} className the class name to remove from the node's class attribute
+     */
+    removeClass: function(className)
+    {
+        var node = this.get("node"),
+            classString = node.className.baseVal;
+        classString = classString.replace(new RegExp(className + ' '), className).replace(new RegExp(className), '');
+        node.className.baseVal = classString;
+    },
+
+    /**
+     * Gets the current position of the node in page coordinates.
+     *
+     * @method getXY
+     * @return Array The XY position of the shape.
+     */
+    getXY: function()
+    {
+        var graphic = this.get("graphic"),
+            parentXY = graphic.getXY(),
+            x = this.get("x"),
+            y = this.get("y");
+        return [parentXY[0] + x, parentXY[1] + y];
+    },
+
+    /**
+     * Set the position of the shape in page coordinates, regardless of how the node is positioned.
+     *
+     * @method setXY
+     * @param {Array} Contains X & Y values for new position (coordinates are page-based)
+     */
+    setXY: function(xy)
+    {
+        var graphic = this.get("graphic"),
+            parentXY = graphic.getXY();
+        this.set("x", xy[0] - parentXY[0]);
+        this.set("y", xy[1] - parentXY[1]);
+    },
+
+    /**
+     * Determines whether the node is an ancestor of another HTML element in the DOM hierarchy. 
+     *
+     * @method contains
+     * @param {SVGShape | HTMLElement} needle The possible node or descendent
+     * @return Boolean Whether or not this shape is the needle or its ancestor.
+     */
+    contains: function(needle)
+    {
+        return needle === this;
+    },
+
+    /**
+     * Test if the supplied node matches the supplied selector.
+     *
+     * @method test
+     * @param {String} selector The CSS selector to test against.
+     * @return Boolean Wheter or not the shape matches the selector.
+     */
+    test: function(selector)
+    {
+        return Y.one(this.get("node")).test(selector);
+    },
+    
+    /**
+     * Value function for fill attribute
+     *
+     * @private
+     * @method _getDefaultFill
+     * @return Object
+     */
+    _getDefaultFill: function() {
+        return {
+            type: "solid",
+            cx: 0.5,
+            cy: 0.5,
+            fx: 0.5,
+            fy: 0.5,
+            r: 0.5
+        };
+    },
+
+    /**
+     * Value function for stroke attribute
+     *
+     * @private
+     * @method _getDefaultStroke
+     * @return Object
+     */
+    _getDefaultStroke: function() 
+    {
+        return {
+            weight: 1,
+            dashstyle: "none",
+            color: "#000",
+            alpha: 1.0
+        };
+    },
+
+    /**
      * Creates the dom node for the shape.
      *
      * @private
@@ -380,11 +494,30 @@ Y.Drawing = Drawing;
     _getNode: function()
     {
         var node = document.createElementNS("http://www.w3.org/2000/svg", "svg:" + this._type),
-            v = this.get("pointerEvents") || "none";
+            v = this.get("pointerEvents") || "none",
+            id = this.get("id");
         node.setAttribute("pointer-events", v);
         node.setAttribute("class", "yui3-" + this.name);
-        node.setAttribute("id", this.get("id"));
+        node.setAttribute("id", id);
+        id = "#" + id;
+        Y.on('mousedown', Y.bind(this._nodeEventDispatcher, this), id);
+        Y.on('mouseup',  Y.bind(this._nodeEventDispatcher, this), id);
+        Y.on('mouseover', Y.bind(this._nodeEventDispatcher, this), id);
+        Y.on('mousemove',  Y.bind(this._nodeEventDispatcher, this), id);
+        Y.on('mouseout', Y.bind(this._nodeEventDispatcher, this), id);
+        Y.on('mouseenter',  Y.bind(this._nodeEventDispatcher, this), id);
+        Y.on('mouseleave',  Y.bind(this._nodeEventDispatcher, this), id);
+        Y.on('click',  Y.bind(this._nodeEventDispatcher, this), id);
         return node;
+    },
+
+    /**
+     * @private
+     */
+    _nodeEventDispatcher: function(e)
+    {
+        e.preventDefault();
+        this.fire(e.type, e);
     },
 
     /**
@@ -403,6 +536,7 @@ Y.Drawing = Drawing;
         this.after("heightChange", this._updateHandler);
         this.after("xChange", this._updateHandler);
         this.after("yChange", this._updateHandler);
+        this.after("graphicChange", this._updateHandler);
     },
     
     /**
@@ -418,9 +552,7 @@ Y.Drawing = Drawing;
             strokeAlpha,
             dashstyle,
             dash,
-            i, 
-            len,
-            space;
+            linejoin = stroke.linejoin || "round";
         if(stroke && stroke.weight && stroke.weight > 0)
         {
             strokeAlpha = stroke.alpha;
@@ -435,6 +567,19 @@ Y.Drawing = Drawing;
             node.setAttribute("stroke-linecap", stroke.linecap);
             node.setAttribute("stroke-width",  stroke.weight);
             node.setAttribute("stroke-opacity", stroke.alpha);
+            if(linejoin == "round" || linejoin == "bevel")
+            {
+                node.setAttribute("stroke-linejoin", linejoin);
+            }
+            else
+            {
+                linejoin = parseInt(linejoin, 10);
+                if(Y.Lang.isNumber(linejoin))
+                {
+                    node.setAttribute("stroke-miterlimit",  Math.max(linejoin, 1));
+                    node.setAttribute("stroke-linejoin", "miter");
+                }
+            }
         }
         else
         {
@@ -452,37 +597,105 @@ Y.Drawing = Drawing;
     {
         var node = this.get("node"),
             fill = this.get("fill"),
-            fillAlpha;
+            fillAlpha,
+            type = fill.type;
         if(fill)
         {
-            if(fill.type === "linear" || fill.type === "radial")
+            if(type == "linear" || type == "radial")
             {
-                this.beginGradientFill(fill);
-                //node.appendChild(this._getFill());
+                this._setGradientFill(fill);
+                node.setAttribute("fill", "url(#grad" + this.get("id") + ")");
             }
-            else if(fill.type === "bitmap")
+            else if(!fill.color)
             {
-                this.beginBitmapFill(fill);
-                //node.appendChild(this._getFill());
+                node.setAttribute("fill", "none");
             }
             else
             {
-                if(!fill.color)
-                {
-                    node.setAttribute("fill", "none");
-                }
-                else
-                {
-                    fillAlpha = fill.alpha; 
-                    fill.alpha = Y.Lang.isNumber(fillAlpha) ? fillAlpha : 1;
-                    node.setAttribute("fill", fill.color);
-                    node.setAttribute("fill-opacity", fillAlpha);
-                }
+                fillAlpha = fill.alpha; 
+                fill.alpha = Y.Lang.isNumber(fillAlpha) ? fillAlpha : 1;
+                node.setAttribute("fill", fill.color);
+                node.setAttribute("fill-opacity", fillAlpha);
             }
         }
         else
         {
             node.setAttribute("fill", "none");
+        }
+    },
+
+
+    /**
+     * Returns a linear gradient fill
+     *
+     * @method _getLinearGradient
+     * @param {String} type gradient type
+     * @private
+     */
+    _setGradientFill: function(fill) {
+        if(!this.get("graphic")) return;
+        var offset,
+            opacity,
+            color,
+            stopNode,
+            isNumber = Y.Lang.isNumber,
+            graphic = this.get("graphic"),
+            type = fill.type, 
+            gradientNode = graphic.getGradientNode("grad" + this.get("id"), type),
+            stops = fill.stops,
+            w = this.get("width"),
+            h = this.get("height"),
+            rotation = fill.rotation,
+            i,
+            len,
+            def,
+            stop,
+            x1 = "0%", 
+            x2 = "100%", 
+            y1 = "50%", 
+            y2 = "50%",
+            cx = fill.cx,
+            cy = fill.cy,
+            fx = fill.fx,
+            fy = fill.fy,
+            r = fill.r;
+        if(type == "linear")
+        {
+            gradientNode.setAttribute("gradientTransform", "rotate(" + rotation + "," + (w/2) + ", " + (h/2) + ")");
+            gradientNode.setAttribute("width", w);
+            gradientNode.setAttribute("height", h);
+            gradientNode.setAttribute("x1", x1);
+            gradientNode.setAttribute("y1", y1);
+            gradientNode.setAttribute("x2", x2);
+            gradientNode.setAttribute("y2", y2);
+            gradientNode.setAttribute("gradientUnits", "userSpaceOnUse");
+        }
+        else
+        {
+            gradientNode.setAttribute("cx", (cx * 100) + "%");
+            gradientNode.setAttribute("cy", (cy * 100) + "%");
+            gradientNode.setAttribute("fx", (fx * 100) + "%");
+            gradientNode.setAttribute("fy", (fy * 100) + "%");
+            gradientNode.setAttribute("r", (r * 100) + "%");
+        }
+        
+        len = stops.length;
+        def = 0;
+        for(i = 0; i < len; ++i)
+        {
+            stop = stops[i];
+            opacity = stop.opacity;
+            color = stop.color;
+            offset = stop.offset || i/(len - 1);
+            offset = Math.round(offset * 100) + "%";
+            opacity = isNumber(opacity) ? opacity : 1;
+            opacity = Math.max(0, Math.min(1, opacity));
+            def = (i + 1) / len;
+            stopNode = graphic._createGraphicNode("stop");
+            stopNode.setAttribute("offset", offset);
+            stopNode.setAttribute("stop-color", color);
+            stopNode.setAttribute("stop-opacity", opacity);
+            gradientNode.appendChild(stopNode);
         }
     },
 
@@ -535,6 +748,11 @@ Y.Drawing = Drawing;
         this._addTransform("skewY", arguments);
      },
 
+    /**
+     * @private
+     */
+     _rotation: 0,
+
      /**
       * Applies a rotation.
       *
@@ -543,6 +761,7 @@ Y.Drawing = Drawing;
       */
      rotate: function(deg)
      {
+        this._rotation = deg;
         this._addTransform("rotate", arguments);
      },
 
@@ -590,14 +809,16 @@ Y.Drawing = Drawing;
             args,
             val,
             transform = node.getAttribute("transform"),
-            test;
+            test,
+            transformOrigin;
         if(this._transformArgs)
         {
             if(this._transformArgs.hasOwnProperty("rotate"))
             {
+                transformOrigin = this.get("transformOrigin");
                 args = this._transformArgs.rotate;
-                args[1] = this.get("x") + (this.get("width") * 0.5);
-                args[2] = this.get("y") + (this.get("height") * 0.5);
+                args[1] = this.get("x") + (this.get("width") * transformOrigin[0]);
+                args[2] = this.get("y") + (this.get("height") * transformOrigin[1]);
             }
         }
         for(key in this._transformArgs)
@@ -683,7 +904,12 @@ Y.Drawing = Drawing;
      */
     getBounds: function()
     {
-        var w = this.get("width"),
+        var rotation = this.get("rotation"),
+            absRot = Math.abs(rotation),
+            radCon = Math.PI/180,
+            sinRadians = parseFloat(parseFloat(Math.sin(absRot * radCon)).toFixed(8)),
+            cosRadians = parseFloat(parseFloat(Math.cos(absRot * radCon)).toFixed(8)),
+            w = this.get("width"),
             h = this.get("height"),
             stroke = this.get("stroke"),
             x = this.get("x"),
@@ -691,7 +917,21 @@ Y.Drawing = Drawing;
             wt = 0,
             tx = this.get("translateX"),
             ty = this.get("translateY"),
-            bounds = {};
+            bounds = {},
+            transformOrigin = this.get("transformOrigin"),
+            originalWidth,
+            originalHeight,
+            tox = transformOrigin[0],
+            toy = transformOrigin[1];
+        if(rotation !== 0)
+        {
+            originalWidth = w;
+            originalHeight = h;
+            w = (cosRadians * h) + (sinRadians * w);
+            h = (cosRadians * h) + (sinRadians * w);
+            x = (x + originalWidth * tox) - (sinRadians * (originalHeight * (1 - toy))) - (cosRadians * (originalWidth * tox));
+            y = (y + originalHeight * toy) - (sinRadians * (originalWidth * tox)) - (cosRadians * originalHeight * toy);
+        }
         if(stroke && stroke.weight)
         {
             wt = stroke.weight;
@@ -704,6 +944,38 @@ Y.Drawing = Drawing;
     }
  }, {
     ATTRS: {
+        /**
+         * An array of x, y values which indicates the transformOrigin in which to rotate the shape. Valid values range between 0 and 1 representing a 
+         * fraction of the shape's corresponding bounding box dimension. The default value is [0.5, 0.5].
+         *
+         * @attribute transformOrigin
+         * @type Array
+         */
+        transformOrigin: {
+            valueFn: function()
+            {
+                return [0.5, 0.5];
+            }
+        },
+
+        /**
+         * The rotation (in degrees) of the shape.
+         *
+         * @attribute rotation
+         * @type Number
+         */
+        rotation: {
+            setter: function(val)
+            {
+                this.rotate(val);
+            },
+
+            getter: function()
+            {
+                return this._rotation;
+            }
+        },
+
         /**
          * Dom node of the shape
          *
@@ -790,16 +1062,49 @@ Y.Drawing = Drawing;
          *  <dl>
          *      <dt>color</dt><dd>The color of the fill.</dd>
          *      <dt>alpha</dt><dd>Number between 0 and 1 that indicates the opacity of the fill. The default value is 1.</dd>
+         *      <dt>type</dt><dd>Type of fill.
+         *          <dl>
+         *              <dt>solid</dt><dd>Solid single color fill. (default)</dd>
+         *              <dt>linear</dt><dd>Linear gradient fill.</dd>
+         *              <dt>radial</dt><dd>Radial gradient fill.</dd>
+         *          </dl>
+         *      </dd>
          *  </dl>
+         *
+         *  <p>If a gradient (linear or radial) is specified as the fill type. The following properties are used:
+         *  <dl>
+         *      <dt>stops</dt><dd>An array of objects containing the following properties:
+         *          <dl>
+         *              <dt>color</dt><dd></dd>
+         *              <dt>opacity</dt><dd></dd>
+         *              <dt>offset</dt><dd>Number between 0 and 1 indicating where the color stop is positioned.</dd> 
+         *          </dl>
+         *      </dd>
+         *      <dt></dt><dd></dd>
+         *      <dt></dt><dd></dd>
+         *      <dt></dt><dd></dd>
+         *  </dl>
+         *  </p>
          *
          * @attribute fill
          * @type Object 
          */
         fill: {
+            valueFn: "_getDefaultFill",
+            
             setter: function(val)
             {
-                var tmpl = this.get("fill") || this._getAttrCfg("fill").defaultValue;
-                return (val) ? Y.merge(tmpl, val) : null;
+                var fill,
+                    tmpl = this.get("fill") || this._getDefaultFill();
+                fill = (val) ? Y.merge(tmpl, val) : null;
+                if(fill && fill.color)
+                {
+                    if(fill.color === undefined || fill.color == "none")
+                    {
+                        fill.color = null;
+                    }
+                }
+                return fill;
             }
         },
 
@@ -817,18 +1122,11 @@ Y.Drawing = Drawing;
          * @type Object
          */
         stroke: {
-            valueFn: function() {
-                return {
-                    weight: 1,
-                    dashstyle: null,
-                    color: "#000",
-                    alpha: 1.0
-                };
-            },
+            valueFn: "_getDefaultStroke",
 
             setter: function(val)
             {
-                var tmpl = this.get("stroke") || this._getAttrCfg("stroke").defaultValue;
+                var tmpl = this.get("stroke") || this._getDefaultStroke();
                 return (val) ? Y.merge(tmpl, val) : null;
             }
         },
@@ -896,12 +1194,30 @@ Y.Drawing = Drawing;
         },
 
         /**
+         * The node used for gradient fills.
+         *
+         * @attribute gradientNode
+         * @type HTMLElement
+         */
+        gradientNode: {
+            setter: function(val)
+            {
+                if(Y.Lang.isString(val))
+                {
+                    val = this.get("graphic").getGradientNode("linear", val);
+                }
+                return val;
+            }
+        },
+
+        /**
          * Reference to the container Graphic.
          *
          * @attribute graphic
          * @type Graphic
          */
         graphic: {
+            writeOnce: true,
             setter: function(val){
                 this.after("shapeUpdate", Y.bind(val.updateCoordSpace, val));
                 return val;
@@ -962,65 +1278,70 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
      */
     _draw: function()
     {
-        var pathArray = this._pathArray,
+        var pathArray,
             segmentArray,
             pathType,
             len,
             val,
             val2,
             i,
-            path = this.get("path"),
+            path = "",
             node = this.get("node"),
             tx = this.get("translateX"),
             ty = this.get("translateY"),
             left = this._left,
-            top = this._top;
-        while(pathArray && pathArray.length > 0)
+            top = this._top,
+            fill = this.get("fill");
+        if(this._pathArray)
         {
-            segmentArray = pathArray.shift();
-            len = segmentArray.length;
-            pathType = segmentArray[0];
-            path += " " + pathType + (segmentArray[1] - left);
-            switch(pathType)
+            pathArray = this._pathArray.concat();
+            while(pathArray && pathArray.length > 0)
             {
-                case "L" :
-                case "M" :
-                    for(i = 2; i < len; ++i)
-                    {
-                        val = (i % 2 === 0) ? top : left;
-                        val = segmentArray[i] - val;
-                        path += ", " + val;
-                    }
-                break;
-                case "Q" :
-                case "C" :
-                    for(i = 2; i < len; ++i)
-                    {
-                        val = (i % 2 === 0) ? top : left;
-                        val2 = segmentArray[i];
-                        val2 -= val;
-                        path += " " + val2;
-                    }
-                break;
+                segmentArray = pathArray.shift();
+                len = segmentArray.length;
+                pathType = segmentArray[0];
+                path += " " + pathType + (segmentArray[1] - left);
+                switch(pathType)
+                {
+                    case "L" :
+                    case "M" :
+                    case "Q" :
+                        for(i = 2; i < len; ++i)
+                        {
+                            val = (i % 2 === 0) ? top : left;
+                            val = segmentArray[i] - val;
+                            path += ", " + val;
+                        }
+                    break;
+                    case "C" :
+                        for(i = 2; i < len; ++i)
+                        {
+                            val = (i % 2 === 0) ? top : left;
+                            val2 = segmentArray[i];
+                            val2 -= val;
+                            path += " " + val2;
+                        }
+                    break;
 
+                }
             }
+            if(fill && fill.color)
+            {
+                path += 'z';
+            }
+            if(path)
+            {
+                node.setAttribute("d", path);
+            }
+            //Use transform to handle positioning.
+            this._transformArgs = this._transformArgs || {};
+            this._transformArgs.translate = [left + tx, top + ty];
+            
+            this.set("path", path);
+            this._fillChangeHandler();
+            this._strokeChangeHandler();
+            this._updateTransform();
         }
-        if(this._fill)
-        {
-            path += 'z';
-        }
-        if(path)
-        {
-            node.setAttribute("d", path);
-        }
-        //SVG Path has know notion of positioning. All positioning needs to be applied through a transform.
-        this._transformArgs = this._transformArgs || {};
-        this._transformArgs.translate = [left + tx, top + ty];
-        
-        this.set("path", path);
-        this._fillChangeHandler();
-        this._strokeChangeHandler();
-        this._updateTransform();
     },
    
     /**
@@ -1032,7 +1353,8 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
      */
     translate: function(x, y)
     {
-        var node = this.get("node");
+        x = parseInt(x, 10);
+        y = parseInt(y, 10);
         this._translateX = x;
         this._translateY = y;
         this._translate(this._left + x, this._top + y);
@@ -1060,6 +1382,7 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
         this._right = 0;
         this._top = 0;
         this._bottom = 0;
+        this._pathArray = [];
         this.set("path", "");
     },
 
@@ -1095,9 +1418,7 @@ Y.Path = Y.Base.create("path", Y.Shape, [Y.Drawing], {
         width: {
             getter: function()
             {
-                var rt = this._right,
-                    lft = this._left,
-                    val = Math.max(this._right - this._left, 0);
+                var val = Math.max(this._right - this._left, 0);
                 return val;
             }
         },
@@ -1326,6 +1647,13 @@ function Graphic(config) {
 }
 
 Graphic.prototype = {
+    getXY: function()
+    {
+        var parentNode = Y.one(this.node.parentNode),
+            parentXY = parentNode.getXY();
+        return parentXY;
+    },
+
     /**
      * Indicates whether or not the instance will size itself based on its contents.
      *
@@ -1344,9 +1672,13 @@ Graphic.prototype = {
         config = config || {};
         var w = config.width || 0,
             h = config.height || 0;
+        this._gradients = {};
         this.id = Y.guid();
-        this.node = this._createGraphics();
-        this.node.setAttribute("id", this.id);
+        this.node = Y.config.doc.createElement('div');
+        this.node.style.position = "absolute";
+        this.group = this._createGraphics();
+        this.group.setAttribute("id", this.id);
+        this.node.appendChild(this.group);
         this.setSize(w, h);
         if(config.render)
         {
@@ -1435,7 +1767,7 @@ Graphic.prototype = {
         {
             while(this._graphicsList.length > 0)
             {
-                this.node.removeChild(this._graphicsList.shift());
+                this.group.removeChild(this._graphicsList.shift());
             }
         }
     },
@@ -1452,11 +1784,11 @@ Graphic.prototype = {
         {
             if(w > this.node.getAttribute("width"))
             {
-                this.node.setAttribute("width",  w);
+                this.group.setAttribute("width",  w);
             }
-            if(h > this.node.getAttribute("height"))
+            if(h > this.group.getAttribute("height"))
             {
-                this.node.setAttribute("height", h);
+                this.group.setAttribute("height", h);
             }
         }
     },
@@ -1549,7 +1881,7 @@ Graphic.prototype = {
     {
         var node = document.createElementNS("http://www.w3.org/2000/svg", "svg:" + type),
             v = pe || "none";
-        if(type !== "defs" && type !== "stop" && type !== "linearGradient")
+        if(type !== "defs" && type !== "stop" && type !== "linearGradient" && type != "radialGradient")
         {
             node.setAttribute("pointer-events", v);
         }
@@ -1565,8 +1897,7 @@ Graphic.prototype = {
     addShape: function(shape)
     {
         var node = shape.get("node");
-        shape.set("graphic", this);
-        this.node.appendChild(node);
+        this.group.appendChild(node);
         if(!this._graphicsList)
         {
             this._graphicsList = [];
@@ -1577,6 +1908,7 @@ Graphic.prototype = {
         }
         this._graphicsList.push(node);
         this._shapes[shape.get("id")] = shape;
+        shape.set("graphic", this);
         this.updateCoordSpace();
     },
 
@@ -1619,25 +1951,78 @@ Graphic.prototype = {
         }
         this._width = this._right - this._left;
         this._height = this._bottom - this._top;
-        this.node.setAttribute("width", this._width);
-        this.node.setAttribute("height", this._height);
         this.node.style.width = this._width + "px";
         this.node.style.height = this._height + "px";
         this.node.style.left = this._left + "px";
         this.node.style.top = this._top + "px";
-        this.node.setAttribute("viewBox", "" + this._left + " " + this._top + " " + this._width + " " + this._height + "");
+        this.group.setAttribute("width", this._width);
+        this.group.setAttribute("height", this._height);
+        this.group.style.width = this._width + "px";
+        this.group.style.height = this._height + "px";
+        this.group.setAttribute("viewBox", "" + this._left + " " + this._top + " " + this._width + " " + this._height + "");
     },
 
+
+    /**
+     * @private
+     */
     _left: 0,
 
+    /**
+     * @private
+     */
     _right: 0,
 
+    /**
+     * @private
+     */
     _top: 0,
 
-    _bottom: 0
+    /**
+     * @private
+     */
+    _bottom: 0,
+
+    /**
+     * Returns a reference to a gradient definition based on an id and type.
+     *
+     * @method getGradientNode
+     * @key {String} id that references the gradient definition
+     * @type {String} description of the gradient type
+     * @return HTMLElement
+     */
+    getGradientNode: function(key, type)
+    {
+        var gradients = this._gradients,
+            gradient,
+            nodeType = type + "Gradient";
+        if(gradients.hasOwnProperty(key) && gradients[key].tagName.indexOf(type) > -1)
+        {
+            gradient = this._gradients[key];
+        }
+        else
+        {
+            gradient = this._createGraphicNode(nodeType);
+            if(!this._defs)
+            {
+                this._defs = this._createGraphicNode("defs");
+                this.group.appendChild(this._defs);
+            }
+            this._defs.appendChild(gradient);
+            key = key || "gradient" + Math.round(100000 * Math.random());
+            gradient.setAttribute("id", key);
+            if(gradients.hasOwnProperty(key))
+            {
+                this._defs.removeChild(gradients[key]);
+            }
+            gradients[key] = gradient;
+        }
+        return gradient;
+    }
+
 };
 Y.Graphic = Graphic;
 
 
 
-}, '@VERSION@' ,{skinnable:false, requires:['graphics']});
+}, '@VERSION@' ,{requires:['dom', 'event-custom', 'base', 'graphics'], skinnable:false});

@@ -14,8 +14,16 @@ Y.LineSeries = Y.Base.create("lineSeries", Y.CartesianSeries, [Y.Lines], {
      */
     drawSeries: function()
     {
+        var form = this.get("form");
         this.get("graphic").clear();
-        this.drawLines();
+        if(form == "histogram")
+        {
+            this.drawHistogram();
+        }
+        else
+        {
+            this.drawLines();
+        }
     },
 
     /**
@@ -62,8 +70,12 @@ Y.LineSeries = Y.Base.create("lineSeries", Y.CartesianSeries, [Y.Lines], {
          */
         type: {
             value:"line"
-        }
+        },
 
+        form: {
+            value: "segment"
+        }
+        
         /**
          * Style properties used for drawing lines. This attribute is inherited from <code>Renderer</code>. Below are the default values:
          *  <dl>

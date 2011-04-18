@@ -7,4 +7,4 @@ YUI.add('graphics', function(Y) {
  */
 
 
-}, '@VERSION@' ,{requires:['dom', 'event-custom', 'event-mouseenter', 'base']});
+}, '@VERSION@' ,{requires:['dom', 'event-custom', 'base']});

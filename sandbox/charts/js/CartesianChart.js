@@ -16,15 +16,11 @@ Y.CartesianChart = Y.Base.create("cartesianChart", Y.Widget, [Y.ChartBase], {
         //move the position = absolute logic to a class file
         this.get("boundingBox").setStyle("position", "absolute");
         this.get("contentBox").setStyle("position", "absolute");
-        this._addAxes();
-        this._addGridlines();
-        this._addSeries();
         if(tt && tt.show)
         {
             this._addTooltip();
         }
         //If there is a style definition. Force them to set.
-        this.get("styles");
         if(this.get("interactionType") == "planar")
         {
             overlay = document.createElement("div");
@@ -36,6 +32,17 @@ Y.CartesianChart = Y.Base.create("cartesianChart", Y.Widget, [Y.ChartBase], {
             this._overlay.addClass("yui3-overlay");
             this._overlay.setStyle("zIndex", 4);
         }
+    },
+    
+    /**
+     * @private
+     */
+    syncUI: function()
+    {
+        this._addAxes();
+        this._addGridlines();
+        this._addSeries();
+        this.get("styles");
         this._redraw();
     },
 
@@ -804,6 +811,7 @@ Y.CartesianChart = Y.Base.create("cartesianChart", Y.Widget, [Y.ChartBase], {
             yKey = series.get("yKey"),
             categoryItem,
             valueItem;
+        index = parseInt(index, 10) + series.startIndex;//series.get("startIndex");
         if(this.get("direction") == "vertical")
         {
             categoryItem = {
@@ -880,7 +888,8 @@ Y.CartesianChart = Y.Base.create("cartesianChart", Y.Widget, [Y.ChartBase], {
         }
         this._drawing = true;
         this._callLater = false;
-        var w = this.get("width"),
+        var bb,
+            w = this.get("width"),
             h = this.get("height"),
             lw = 0,
             rw = 0,
@@ -940,11 +949,12 @@ Y.CartesianChart = Y.Base.create("cartesianChart", Y.Widget, [Y.ChartBase], {
         for(; i < l; ++i)
         {
             axis = this._axesCollection[i];
+            bb = axis.get("boundingBox");
             pos = axis.get("position");
             if(pos == "left" || pos === "right")
             {
-                axis.get("boundingBox").setStyle("top", th + "px");
-                axis.get("boundingBox").setStyle("left", pts[i].x);
+                bb.setStyle("top", th + "px");
+                bb.setStyle("left", pts[i].x);
                 if(axis.get("height") !== h - (bh + th))
                 {
                     axis.set("height", h - (bh + th));
@@ -956,8 +966,8 @@ Y.CartesianChart = Y.Base.create("cartesianChart", Y.Widget, [Y.ChartBase], {
                 {
                     axis.set("width", w - (lw + rw));
                 }
-                axis.get("boundingBox").setStyle("left", lw + "px");
-                axis.get("boundingBox").setStyle("top", pts[i].y);
+                bb.setStyle("left", lw + "px");
+                bb.setStyle("top", pts[i].y);
             }
             if(axis.get("setMax") || axis.get("setMin"))
             {
@@ -973,13 +983,14 @@ Y.CartesianChart = Y.Base.create("cartesianChart", Y.Widget, [Y.ChartBase], {
         }
         if(graph)
         {
-            graph.get("boundingBox").setStyle("left", lw + "px");
-            graph.get("boundingBox").setStyle("top", th + "px");
+            bb = graph.get("boundingBox");
+            bb.setStyle("left", lw + "px");
+            bb.setStyle("top", th + "px");
             graph.set("width", w - (lw + rw));
             graph.set("height", h - (th + bh));
             graph.get("boundingBox").setStyle("overflow", graphOverflow);
         }
-
+ 
         if(this._overlay)
         {
             this._overlay.setStyle("left", lw + "px");

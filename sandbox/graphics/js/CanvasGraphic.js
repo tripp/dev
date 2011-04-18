@@ -10,6 +10,13 @@ function Graphic(config) {
 }
 
 Graphic.prototype = {
+    getXY: function()
+    {
+        var node = Y.one(this.node),
+            xy = node.getXY();
+        return xy;
+    },
+
     /**
      * Indicates whether or not the instance will size itself based on its contents.
      *
@@ -132,6 +139,7 @@ Graphic.prototype = {
     addShape: function(shape)
     {
         var node = shape.get("node");
+        shape.set("graphic", this);
         this.node.appendChild(node);
         if(!this._graphicsList)
         {

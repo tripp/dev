@@ -194,6 +194,7 @@ CanvasDrawingUtil.prototype = {
      */
     clear: function() {
         this._initProps();
+        this._context.clearRect(0, 0, this._canvas.width, this._canvas.height);
         this._canvas.width = this._canvas.width;
         this._canvas.height = this._canvas.height;
         return this;

@@ -1117,6 +1117,7 @@ CanvasDrawingUtil.prototype = {
      */
     clear: function() {
         this._initProps();
+        this._context.clearRect(0, 0, this._canvas.width, this._canvas.height);
         this._canvas.width = this._canvas.width;
         this._canvas.height = this._canvas.height;
         return this;
@@ -2583,9 +2584,10 @@ VMLGraphics.prototype = {
             shape.filled = false;
         }
         if (this._stroke && this._strokeWeight > 0) {
+            shape.stroked = true;
             shape.strokeColor = this._strokeColor;
             shape.strokeWeight = this._strokeWeight;
-            if(Y.Lang.isNumber(this._strokeOpacity) && this._strokeOpacity < 1)
+            if(Y.Lang.isNumber(this._strokeOpacity) && this._strokeOpacity < 1 && this._strokeOpacity >= 0)
             {    
                 strokeNode = this._createGraphicNode("stroke");
                 shape.appendChild(strokeNode);
@@ -2648,7 +2650,7 @@ VMLGraphics.prototype = {
         }
         for (prop in fillProps) {
             if(fillProps.hasOwnProperty(prop)) {
-                fill.setAttribute(prop, fillProps[prop]);
+                fill[prop] = fillProps[prop];
            }
         }
         fill.colors = colorstring.substr(2);
@@ -5985,7 +5987,7 @@ Y.AxisType = Y.Base.create("baseAxis", Y.Axis, [], {
     },
 
     /**
-     * Returns a numeric value based of a key value and an index.
+     * Returns a value based of a key value and an index.
      *
      * @method getKeyValueAt
      * @param {String} key value used to look up the correct array
@@ -6488,6 +6490,25 @@ Y.extend(NumericAxis, Y.AxisType,
      * @private
      */
     _type: "numeric",
+
+    /**
+     * Returns a value based of a key value and an index.
+     *
+     * @method getKeyValueAt
+     * @param {String} key value used to look up the correct array
+     * @param {Number} index within the array
+     * @return Object
+     */
+    getKeyValueAt: function(key, index)
+    {
+        var value = NaN,
+            keys = this.get("keys");
+        if(keys[key] && Y.Lang.isNumber(parseFloat(keys[key][index])))
+        {
+            value = keys[key][index];
+        }
+        return value;
+    },
 
     /**
      * @private
@@ -7630,6 +7651,31 @@ Lines.prototype = {
         return this._lineGraphic;
     },
 
+    drawHistogram: function()
+    {
+        var xcoords = this.xcoords.concat(),
+            ycoords = this.ycoords.concat(),
+            direction = this.get("direction"),
+            len = direction === "vertical" ? ycoords.length : xcoords.length,
+            i = 0,
+            styles = this.get("styles").line,
+            lineType = styles.lineType,
+            lc = styles.color || this._getDefaultColor(this.get("graphOrder"), "line"),
+            lineAlpha = styles.alpha,
+            dashLength = styles.dashLength,
+            gapSpace = styles.gapSpace,
+            graphic = this._getGraphic(),
+            endY = this._bottomOrigin;
+        graphic.lineStyle(styles.weight, lc, lineAlpha);
+        graphic.moveTo(xcoords[0], ycoords[0]);
+        for(; i < len; ++i)
+        {
+           graphic.lineTo(xcoords[i], ycoords[i]);
+           graphic.lineTo(xcoords[i], endY);
+        }
+        graphic.end();
+    },
+
     /**
      * Draws lines for the series.
      *
@@ -7642,14 +7688,16 @@ Lines.prototype = {
         {
             return;
         }
-        var xcoords = this.get("xcoords").concat(),
+        var isNumber = Y.Lang.isNumber,
+            xcoords = this.get("xcoords").concat(),
             ycoords = this.get("ycoords").concat(),
             direction = this.get("direction"),
             len = direction === "vertical" ? ycoords.length : xcoords.length,
-            lastX,
-            lastY,
-            lastValidX = lastX,
-            lastValidY = lastY,
+            lastPointValid,
+            pointValid,
+            noPointsRendered = true,
+            lastValidX,
+            lastValidY,
             nextX,
             nextY,
             i,
@@ -7664,21 +7712,23 @@ Lines.prototype = {
             discontinuousDashLength = styles.discontinuousDashLength,
             discontinuousGapSpace = styles.discontinuousGapSpace,
             graphic = this._getGraphic();
-        lastX = lastValidX = xcoords[0];
-        lastY = lastValidY = ycoords[0];
         graphic.lineStyle(styles.weight, lc, lineAlpha);
-        graphic.moveTo(lastX, lastY);
-        for(i = 1; i < len; i = ++i)
+        for(i = 0; i < len; i = ++i)
         {
             nextX = xcoords[i];
             nextY = ycoords[i];
-            if(isNaN(nextY))
+            pointValid = isNumber(nextX) && isNumber(nextY); 
+            if(!pointValid)
             {
-                lastValidX = nextX;
-                lastValidY = nextY;
+                lastPointValid = pointValid;
                 continue;
             }
-            if(lastValidX == lastX)
+            if(noPointsRendered)
+            {
+                noPointsRendered = false;
+                graphic.moveTo(nextX, nextY);
+            }
+            else if(lastPointValid)
             {
                 if(lineType != "dashed")
                 {
@@ -7708,9 +7758,9 @@ Lines.prototype = {
                     graphic.lineTo(nextX, nextY);
                 }
             }
-        
-            lastX = lastValidX = nextX;
-            lastY = lastValidY = nextY;
+            lastValidX = nextX;
+            lastValidY = nextY;
+            lastPointValid = true;
         }
         graphic.end();
     },
@@ -8173,18 +8223,18 @@ Plots.prototype = {
      */
     drawPlots: function()
     {
-        if(!this.get("xcoords") || this.get("xcoords").length < 1) 
+        if(!this.xplots || this.xplots.length < 1) 
 		{
 			return;
 		}
         var style = Y.clone(this.get("styles").marker),
             w = style.width,
             h = style.height,
-            xcoords = this.get("xcoords"),
-            ycoords = this.get("ycoords"),
+            xplots = this.xplots,
+            yplots = this.yplots,
             i = 0,
-            len = xcoords.length,
-            top = ycoords[0],
+            len = xplots.length,
+            top = yplots[0],
             left,
             marker,
             offsetWidth = w/2,
@@ -8209,8 +8259,8 @@ Plots.prototype = {
         }
         for(; i < len; ++i)
         {
-            top = (ycoords[i] - offsetHeight);
-            left = (xcoords[i] - offsetWidth);            
+            top = (yplots[i] - offsetHeight);
+            left = (xplots[i] - offsetWidth);            
             if(!top || !left || top === undefined || left === undefined || top == "undefined" || left == "undefined" || isNaN(top) || isNaN(left))
             {
                 this._markers.push(null);
@@ -8408,8 +8458,8 @@ Plots.prototype = {
                 markerStyles,
                 styles = Y.clone(this.get("styles").marker),
                 state = this._getState(type),
-                xcoords = this.get("xcoords"),
-                ycoords = this.get("ycoords"),
+                xplots = this.xplots,
+                yplots = this.yplots,
                 marker = this._markers[i],
                 graphicNode = marker.parentNode;
                 markerStyles = state == "off" || !styles[state] ? styles : styles[state]; 
@@ -8418,8 +8468,8 @@ Plots.prototype = {
                 marker.update(markerStyles);
                 w = markerStyles.width;
                 h = markerStyles.height;
-                graphicNode.style.left = (xcoords[i] - w/2) + "px";
-                graphicNode.style.top = (ycoords[i] - h/2) + "px";
+                graphicNode.style.left = (xplots[i] - w/2) + "px";
+                graphicNode.style.top = (yplots[i] - h/2) + "px";
                 marker.toggleVisible(this.get("visible"));
         }
     },
@@ -8661,18 +8711,18 @@ Histogram.prototype = {
      */
     drawSeries: function()
     {
-        if(this.get("xcoords").length < 1) 
+        if(this.xplots.length < 1) 
         {
             return;
         }
         var style = Y.clone(this.get("styles").marker),
             setSize,
             calculatedSize,
-            xcoords = this.get("xcoords"),
-            ycoords = this.get("ycoords"),
+            xplots = this.xplots,
+            yplots = this.yplots,
             i = 0,
-            len = xcoords.length,
-            top = ycoords[0],
+            len = xplots.length,
+            top = yplots[0],
             type = this.get("type"),
             graph = this.get("graph"),
             seriesCollection = graph.seriesTypes[type],
@@ -8739,7 +8789,7 @@ Histogram.prototype = {
         offset -= seriesSize/2;
         for(i = 0; i < len; ++i)
         {
-            config = this._getMarkerDimensions(xcoords[i], ycoords[i], calculatedSize, offset);
+            config = this._getMarkerDimensions(xplots[i], yplots[i], calculatedSize, offset);
             top = config.top;
             calculatedSize = config.calculatedSize;
             left = config.left;
@@ -9000,7 +9050,8 @@ Y.CartesianSeries = Y.Base.create("cartesianSeries", Y.Base, [Y.Renderer], {
      */
     setAreaData: function()
     {
-        var nextX, nextY,
+        var isNumber = Y.Lang.isNumber,
+            nextX, nextY,
             graph = this.get("graph"),
             w = graph.get("width"),
             h = graph.get("height"),
@@ -9008,52 +9059,175 @@ Y.CartesianSeries = Y.Base.create("cartesianSeries", Y.Base, [Y.Renderer], {
             yAxis = this.get("yAxis"),
             xData = this.get("xData").concat(),
             yData = this.get("yData").concat(),
-            xOffset = xAxis.getEdgeOffset(xData.length, w),
-            yOffset = yAxis.getEdgeOffset(yData.length, h),
+            xValue,
+            yValue,
+            xOffset,
+            yOffset,
+            masterData,
+            masterMax,
+            masterMin,
+            startIndex,
+            endIndex,
             padding = this.get("styles").padding,
-			leftPadding = padding.left,
-			topPadding = padding.top,
-			dataWidth = w - (leftPadding + padding.right + xOffset),
-			dataHeight = h - (topPadding + padding.bottom + yOffset),
-			xcoords = [],
-			ycoords = [],
+            leftPadding = padding.left,
+            topPadding = padding.top,
+            xcoords = [],
+            ycoords = [],
+            xplots = [],
+            yplots = [],
 			xMax = xAxis.get("maximum"),
 			xMin = xAxis.get("minimum"),
 			yMax = yAxis.get("maximum"),
 			yMin = yAxis.get("minimum"),
-            xScaleFactor = dataWidth / (xMax - xMin),
-			yScaleFactor = dataHeight / (yMax - yMin),
+            range,
+            dataWidth,
+            dataHeight,
+            xScaleFactor,
+            yScaleFactor,
             dataLength,
             direction = this.get("direction"),
             i = 0,
+            x1, 
+            y1, 
+            x2, 
+            y2, 
+            x3, 
+            y3,
             xMarkerPlane = [],
             yMarkerPlane = [],
             xMarkerPlaneOffset = this.get("xMarkerPlaneOffset"),
             yMarkerPlaneOffset = this.get("yMarkerPlaneOffset"),
             graphic = this.get("graphic");
-        dataLength = xData.length;
-        xOffset *= 0.5;
-        yOffset *= 0.5;
-        //Assuming a vertical graph has a range/category for its vertical axis.    
-        if(direction === "vertical")
-        {
-            yData = yData.reverse();
-        }
         if(graphic)
         {
             graphic.setSize(w, h);
         }
-        this._leftOrigin = Math.round(((0 - xMin) * xScaleFactor) + leftPadding + xOffset);
-        this._bottomOrigin =  Math.round((dataHeight + topPadding + yOffset) - (0 - yMin) * yScaleFactor);
-        for (; i < dataLength; ++i) 
-		{
-            nextX = Math.round((((xData[i] - xMin) * xScaleFactor) + leftPadding + xOffset));
-			nextY = Math.round(((dataHeight + topPadding + yOffset) - (yData[i] - yMin) * yScaleFactor));
+        //Assuming a vertical graph has a range/category for its vertical axis.    
+        if(direction === "vertical")
+        {
+            dataLength = yData.length;
+            yData = yData.reverse();
+            masterData = yData;
+            masterMax = yMax;
+            masterMin = yMin;
+        }
+        else
+        {
+            dataLength = xData.length;
+            masterData = xData;
+            masterMax = xMax;
+            masterMin = xMin;
+        }
+        
+        //Set the start index for the series based on the master axis' minimum.
+        for(; i < dataLength; ++i)
+        {
+            if(masterData[i] >= masterMin)
+            {
+                startIndex = i;
+                break;
+            }
+        }
+         
+        //Set the end index for the series based on the master axis' maximum.
+        for(i = dataLength; i > -1; --i)
+        {
+            if(masterData[i] <= masterMax)
+            {
+                endIndex = i;
+                break;
+            }
+        }
+        
+        range = endIndex - startIndex;
+        xOffset = xAxis.getEdgeOffset(range, w);
+        yOffset = yAxis.getEdgeOffset(range, h);
+        dataWidth = w - (leftPadding + padding.right + xOffset);
+        dataHeight = h - (topPadding + padding.bottom + yOffset);
+        xScaleFactor = dataWidth / (xMax - xMin);
+        yScaleFactor = dataHeight / (yMax - yMin);
+        
+        xOffset *= 0.5;
+        yOffset *= 0.5;
+        this._leftOrigin = leftPadding + xOffset;
+        this._leftOrigin = Math.round( Math.max(this._leftOrigin, this._leftOrigin - (xMin * xScaleFactor)));
+        this._bottomOrigin = dataHeight + topPadding + yOffset;
+        this._bottomOrigin =  Math.round(Math.min(this._bottomOrigin, this._bottomOrigin + (yMin * yScaleFactor)));
+        for (i = startIndex; i <= endIndex; ++i) 
+        {
+            xValue = parseFloat(xData[i]);
+            yValue = parseFloat(yData[i]);
+            if(isNumber(xValue))
+            {
+                nextX = Math.round((((xValue - xMin) * xScaleFactor) + leftPadding + xOffset));
+            }
+            else
+            {
+                nextX = NaN;
+            }
+            if(isNumber(yValue))
+            {
+                nextY = Math.round(((dataHeight + topPadding + yOffset) - (yValue - yMin) * yScaleFactor));
+            }
+            else
+            {
+                nextY = NaN;
+            }
             xcoords.push(nextX);
             ycoords.push(nextY);
+            xplots.push(nextX);
+            yplots.push(nextY);
             xMarkerPlane.push({start:nextX - xMarkerPlaneOffset, end: nextX + xMarkerPlaneOffset});
             yMarkerPlane.push({start:nextY - yMarkerPlaneOffset, end: nextY + yMarkerPlaneOffset});
         }
+        this.startIndex = startIndex;
+        this.endIndex = endIndex;
+        if(masterData[startIndex] > masterMin && startIndex > 0)
+        {
+            i = startIndex -1;
+            dataLength++;
+            if(direction == "vertical")
+            {
+                nextY = 0;
+                nextX = ((nextY - ycoords[i]) * (xcoords[startIndex] - xcoords[i])) / (ycoords[startIndex] - ycoords[i]);
+            }
+            else
+            {
+                x1 = Math.round((((xData[i] - xMin) * xScaleFactor) + leftPadding + xOffset));
+                x2 = 0;
+                x3 = xcoords[0];
+                y1 = Math.round(((dataHeight + topPadding + yOffset) - (yData[i] - yMin) * yScaleFactor));
+                y3 = ycoords[0];
+                nextX = 0;
+                nextY = (((x2 - x1) * (y3 - y1)) / (x3 - x1)) + y1;
+            }
+            xcoords.unshift(nextX);
+            ycoords.unshift(nextY);
+        }
+        if(masterData[endIndex] < masterMax && endIndex < dataLength - 1)
+        {
+            i = endIndex + 1;
+            if(direction == "vertical")
+            {
+                nextY = h;
+                nextX = ((nextY - ycoords[endIndex]) * (xcoords[i] - xcoords[endIndex])) / (ycoords[i] - ycoords[endIndex]);
+            }
+            else
+            {
+                x1 = xcoords[xcoords.length - 1];
+                x2 = w;
+                x3 = Math.round((((xData[i] - xMin) * xScaleFactor) + leftPadding + xOffset));
+                y1 = ycoords[ycoords.length - 1];
+                y3 = Math.round(((dataHeight + topPadding + yOffset) - (yData[i] - yMin) * yScaleFactor));
+                nextX = w;
+                nextY = (((x2 - x1) * (y3 - y1)) / (x3 - x1)) + y1;
+            }
+            xcoords.push(nextX);
+            ycoords.push(nextY);
+        }
+        
+        this.xplots = xplots;
+        this.yplots = yplots;
         this.set("xcoords", xcoords);
 		this.set("ycoords", ycoords);
         this.set("xMarkerPlane", xMarkerPlane);
@@ -9646,8 +9820,16 @@ Y.LineSeries = Y.Base.create("lineSeries", Y.CartesianSeries, [Y.Lines], {
      */
     drawSeries: function()
     {
+        var form = this.get("form");
         this.get("graphic").clear();
-        this.drawLines();
+        if(form == "histogram")
+        {
+            this.drawHistogram();
+        }
+        else
+        {
+            this.drawLines();
+        }
     },
 
     /**
@@ -9694,8 +9876,12 @@ Y.LineSeries = Y.Base.create("lineSeries", Y.CartesianSeries, [Y.Lines], {
          */
         type: {
             value:"line"
-        }
+        },
 
+        form: {
+            value: "segment"
+        }
+        
         /**
          * Style properties used for drawing lines. This attribute is inherited from <code>Renderer</code>. Below are the default values:
          *  <dl>
@@ -10813,18 +10999,19 @@ Y.StackedColumnSeries = Y.Base.create("stackedColumnSeries", Y.ColumnSeries, [Y.
 	 */
 	drawSeries: function()
 	{
-	    if(this.get("xcoords").length < 1) 
+	    if(this.xplots.length < 1) 
 		{
 			return;
 		}
-        var style = this.get("styles").marker, 
+        var isNumber = Y.Lang.isNumber,
+            style = this.get("styles").marker, 
             w = style.width,
             h = style.height,
-            xcoords = this.get("xcoords"),
-            ycoords = this.get("ycoords"),
+            xplots = this.xplots,
+            yplots = this.yplots,
             i = 0,
-            len = xcoords.length,
-            top = ycoords[0],
+            len = xplots.length,
+            top = yplots[0],
             type = this.get("type"),
             graph = this.get("graph"),
             seriesCollection = graph.seriesTypes[type],
@@ -10866,7 +11053,14 @@ Y.StackedColumnSeries = Y.Base.create("stackedColumnSeries", Y.ColumnSeries, [Y.
         this.set("positiveBaseValues", positiveBaseValues);
         for(i = 0; i < len; ++i)
         {
-            top = ycoords[i];
+            left = xplots[i];
+            top = yplots[i];
+            
+            if(!isNumber(top) || !isNumber(left))
+            {
+                continue;
+            }
+            
             if(useOrigin)
             {
                 h = Math.abs(this._bottomOrigin - top);
@@ -10898,12 +11092,12 @@ Y.StackedColumnSeries = Y.Base.create("stackedColumnSeries", Y.ColumnSeries, [Y.
                 }
                 else if(top <= this._bottomOrigin)
                 {
-                    top = positiveBaseValues[i] - (this._bottomOrigin - ycoords[i]);
+                    top = positiveBaseValues[i] - (this._bottomOrigin - yplots[i]);
                     h = positiveBaseValues[i] - top;
                     positiveBaseValues[i] = top;
                 }
             }
-            left = xcoords[i] - w/2;
+            left -= w/2;
             style.width = w;
             style.height = h;
             marker = this.getMarker(style, graphOrder, i);
@@ -10938,7 +11132,7 @@ Y.StackedColumnSeries = Y.Base.create("stackedColumnSeries", Y.ColumnSeries, [Y.
             var styles,
                 markerStyles,
                 state = this._getState(type),
-                xcoords = this.get("xcoords"),
+                xplots = this.xplots,
                 marker = this._markers[i],
                 offset = 0;        
             styles = this.get("styles").marker;
@@ -10948,7 +11142,7 @@ Y.StackedColumnSeries = Y.Base.create("stackedColumnSeries", Y.ColumnSeries, [Y.
             offset = styles.width * 0.5;
             if(marker.parentNode)
             {
-                Y.one(marker.parentNode).setStyle("left", (xcoords[i] - offset));
+                Y.one(marker.parentNode).setStyle("left", (xplots[i] - offset));
             }
         }
     },
@@ -11077,7 +11271,8 @@ Y.StackedBarSeries = Y.Base.create("stackedBarSeries", Y.BarSeries, [Y.StackingU
 			return;
 		}
 
-        var style = this.get("styles").marker,
+        var isNumber = Y.Lang.isNumber,
+            style = this.get("styles").marker,
             w = style.width,
             h = style.height,
             xcoords = this.get("xcoords"),
@@ -11128,7 +11323,10 @@ Y.StackedBarSeries = Y.Base.create("stackedBarSeries", Y.BarSeries, [Y.StackingU
         {
             top = ycoords[i];
             left = xcoords[i];
-            
+            if(!isNumber(top) || !isNumber(left))
+            {
+                continue;
+            }
             if(useOrigin)
             {
                 w = Math.abs(left - this._leftOrigin);
@@ -13025,7 +13223,7 @@ ChartBase.prototype = {
     /**
      * @private
      */
-    renderUI: function()
+    syncUI: function()
     {
         var tt = this.get("tooltip");
         //move the position = absolute logic to a class file
@@ -13313,8 +13511,17 @@ ChartBase.prototype = {
      */
     _addTooltip: function()
     {
-        var tt = this.get("tooltip");
-        this.get("contentBox").appendChild(tt.node);
+        var tt = this.get("tooltip"),
+            id = this.get("id") + "_tooltip",
+            cb = this.get("contentBox"),
+            oldNode = document.getElementById(id);
+        if(oldNode)
+        {
+            cb.removeChild(oldNode);
+        }
+        tt.node.setAttribute("id", id);
+        tt.node.addClass("yui3-widget-hidden");
+        cb.appendChild(tt.node);
     },
 
     /**
@@ -13324,7 +13531,8 @@ ChartBase.prototype = {
     {
         var tt = this._tooltip,
             i,
-            styles = val.styles,
+            styles,
+            node,
             props = {
                 markerLabelFunction:"markerLabelFunction",
                 planarLabelFunction:"planarLabelFunction",
@@ -13334,22 +13542,28 @@ ChartBase.prototype = {
                 planarEventHandler:"planarEventHandler",
                 show:"show"
             };
-        if(styles)
+        if(Y.Lang.isObject(val))
         {
-            for(i in styles)
+            styles = val.styles;
+            node = Y.one(val.node) || tt.node;
+            if(styles)
             {
-                if(styles.hasOwnProperty(i))
+                for(i in styles)
                 {
-                    tt.node.setStyle(i, styles[i]);
+                    if(styles.hasOwnProperty(i))
+                    {
+                        node.setStyle(i, styles[i]);
+                    }
                 }
             }
-        }
-        for(i in props)
-        {
-            if(val.hasOwnProperty(i))
+            for(i in props)
             {
-                tt[i] = val[i];
+                if(val.hasOwnProperty(i))
+                {
+                    tt[i] = val[i];
+                }
             }
+            tt.node = node;
         }
         return tt;
     },
@@ -13455,7 +13669,7 @@ ChartBase.prototype = {
                 cb = this.get("contentBox");
             if(node && show)
             {
-                if(!cb.containes(node))
+                if(!cb.contains(node))
                 {
                     this._addTooltip();
                 }
@@ -13482,15 +13696,11 @@ Y.CartesianChart = Y.Base.create("cartesianChart", Y.Widget, [Y.ChartBase], {
         //move the position = absolute logic to a class file
         this.get("boundingBox").setStyle("position", "absolute");
         this.get("contentBox").setStyle("position", "absolute");
-        this._addAxes();
-        this._addGridlines();
-        this._addSeries();
         if(tt && tt.show)
         {
             this._addTooltip();
         }
         //If there is a style definition. Force them to set.
-        this.get("styles");
         if(this.get("interactionType") == "planar")
         {
             overlay = document.createElement("div");
@@ -13502,6 +13712,17 @@ Y.CartesianChart = Y.Base.create("cartesianChart", Y.Widget, [Y.ChartBase], {
             this._overlay.addClass("yui3-overlay");
             this._overlay.setStyle("zIndex", 4);
         }
+    },
+    
+    /**
+     * @private
+     */
+    syncUI: function()
+    {
+        this._addAxes();
+        this._addGridlines();
+        this._addSeries();
+        this.get("styles");
         this._redraw();
     },
 
@@ -14270,6 +14491,7 @@ Y.CartesianChart = Y.Base.create("cartesianChart", Y.Widget, [Y.ChartBase], {
             yKey = series.get("yKey"),
             categoryItem,
             valueItem;
+        index = parseInt(index, 10) + series.startIndex;//series.get("startIndex");
         if(this.get("direction") == "vertical")
         {
             categoryItem = {
@@ -14346,7 +14568,8 @@ Y.CartesianChart = Y.Base.create("cartesianChart", Y.Widget, [Y.ChartBase], {
         }
         this._drawing = true;
         this._callLater = false;
-        var w = this.get("width"),
+        var bb,
+            w = this.get("width"),
             h = this.get("height"),
             lw = 0,
             rw = 0,
@@ -14406,11 +14629,12 @@ Y.CartesianChart = Y.Base.create("cartesianChart", Y.Widget, [Y.ChartBase], {
         for(; i < l; ++i)
         {
             axis = this._axesCollection[i];
+            bb = axis.get("boundingBox");
             pos = axis.get("position");
             if(pos == "left" || pos === "right")
             {
-                axis.get("boundingBox").setStyle("top", th + "px");
-                axis.get("boundingBox").setStyle("left", pts[i].x);
+                bb.setStyle("top", th + "px");
+                bb.setStyle("left", pts[i].x);
                 if(axis.get("height") !== h - (bh + th))
                 {
                     axis.set("height", h - (bh + th));
@@ -14422,8 +14646,8 @@ Y.CartesianChart = Y.Base.create("cartesianChart", Y.Widget, [Y.ChartBase], {
                 {
                     axis.set("width", w - (lw + rw));
                 }
-                axis.get("boundingBox").setStyle("left", lw + "px");
-                axis.get("boundingBox").setStyle("top", pts[i].y);
+                bb.setStyle("left", lw + "px");
+                bb.setStyle("top", pts[i].y);
             }
             if(axis.get("setMax") || axis.get("setMin"))
             {
@@ -14439,13 +14663,14 @@ Y.CartesianChart = Y.Base.create("cartesianChart", Y.Widget, [Y.ChartBase], {
         }
         if(graph)
         {
-            graph.get("boundingBox").setStyle("left", lw + "px");
-            graph.get("boundingBox").setStyle("top", th + "px");
+            bb = graph.get("boundingBox");
+            bb.setStyle("left", lw + "px");
+            bb.setStyle("top", th + "px");
             graph.set("width", w - (lw + rw));
             graph.set("height", h - (th + bh));
             graph.get("boundingBox").setStyle("overflow", graphOverflow);
         }
-
+ 
         if(this._overlay)
         {
             this._overlay.setStyle("left", lw + "px");

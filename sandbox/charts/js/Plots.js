@@ -31,18 +31,18 @@ Plots.prototype = {
      */
     drawPlots: function()
     {
-        if(!this.get("xcoords") || this.get("xcoords").length < 1) 
+        if(!this.xplots || this.xplots.length < 1) 
 		{
 			return;
 		}
         var style = Y.clone(this.get("styles").marker),
             w = style.width,
             h = style.height,
-            xcoords = this.get("xcoords"),
-            ycoords = this.get("ycoords"),
+            xplots = this.xplots,
+            yplots = this.yplots,
             i = 0,
-            len = xcoords.length,
-            top = ycoords[0],
+            len = xplots.length,
+            top = yplots[0],
             left,
             marker,
             offsetWidth = w/2,
@@ -67,8 +67,8 @@ Plots.prototype = {
         }
         for(; i < len; ++i)
         {
-            top = (ycoords[i] - offsetHeight);
-            left = (xcoords[i] - offsetWidth);            
+            top = (yplots[i] - offsetHeight);
+            left = (xplots[i] - offsetWidth);            
             if(!top || !left || top === undefined || left === undefined || top == "undefined" || left == "undefined" || isNaN(top) || isNaN(left))
             {
                 this._markers.push(null);
@@ -266,8 +266,8 @@ Plots.prototype = {
                 markerStyles,
                 styles = Y.clone(this.get("styles").marker),
                 state = this._getState(type),
-                xcoords = this.get("xcoords"),
-                ycoords = this.get("ycoords"),
+                xplots = this.xplots,
+                yplots = this.yplots,
                 marker = this._markers[i],
                 graphicNode = marker.parentNode;
                 markerStyles = state == "off" || !styles[state] ? styles : styles[state]; 
@@ -276,8 +276,8 @@ Plots.prototype = {
                 marker.update(markerStyles);
                 w = markerStyles.width;
                 h = markerStyles.height;
-                graphicNode.style.left = (xcoords[i] - w/2) + "px";
-                graphicNode.style.top = (ycoords[i] - h/2) + "px";
+                graphicNode.style.left = (xplots[i] - w/2) + "px";
+                graphicNode.style.top = (yplots[i] - h/2) + "px";
                 marker.toggleVisible(this.get("visible"));
         }
     },

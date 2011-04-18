@@ -223,9 +223,19 @@ Drawing.prototype = {
      * @param {Number} y y-coordinate for the end point.
      */
     curveTo: function(cp1x, cp1y, cp2x, cp2y, x, y) {
+        var hiX,
+            hiY,
+            loX,
+            loY;
         this._updateDrawingQueue(["bezierCurveTo", cp1x, cp1y, cp2x, cp2y, x, y]);
         this._drawingComplete = false;
         this._updateShapeProps(x, y);
+        hiX = Math.max(x, Math.max(cp1x, cp2x));
+        hiY = Math.max(y, Math.max(cp1y, cp2y));
+        loX = Math.min(x, Math.min(cp1x, cp2x));
+        loY = Math.min(y, Math.min(cp1y, cp2y));
+        this._updatePosition(hiX, hiY);
+        this._updatePosition(loX, loY);
         return this;
     },
 
@@ -238,10 +248,20 @@ Drawing.prototype = {
      * @param {Number} x x-coordinate for the end point.
      * @param {Number} y y-coordinate for the end point.
      */
-    quadraticCurveTo: function(controlX, controlY, anchorX, anchorY) {
-        this._updateDrawingQueue(["quadraticCurveTo", controlX, controlY, anchorX, anchorY]);
+    quadraticCurveTo: function(cpx, cpy, x, y) {
+        var hiX,
+            hiY,
+            loX,
+            loY;
+        this._updateDrawingQueue(["quadraticCurveTo", cpx, cpy, x, y]);
         this._drawingComplete = false;
-        this._updateShapeProps(anchorX, anchorY);
+        this._updateShapeProps(x, y);
+        hiX = Math.max(x, cpx);
+        hiY = Math.max(y, cpy);
+        loX = Math.min(x, cpx);
+        loY = Math.min(y, cpy);
+        this._updatePosition(hiX, hiY);
+        this._updatePosition(loX, loY);
         return this;
     },
 
@@ -475,13 +495,182 @@ Drawing.prototype = {
     },
 
     /**
+     * Returns a linear gradient fill
+     *
+     * @method _getLinearGradient
+     * @private
+     */
+    _getLinearGradient: function() {
+        var isNumber = Y.Lang.isNumber,
+            fill = this.get("fill"),
+            stops = fill.stops,
+            opacity,
+            color,
+            stop,
+            i = 0,
+            len = stops.length,
+            gradient,
+            x = 0,
+            y = 0,
+            w = this.get("width"),
+            h = this.get("height"),
+            r = fill.rotation,
+            x1, x2, y1, y2,
+            cx = x + w/2,
+            cy = y + h/2,
+            offset,
+            radCon = Math.PI/180,
+            tanRadians = parseFloat(parseFloat(Math.tan(r * radCon)).toFixed(8));
+        if(Math.abs(tanRadians) * w/2 >= h/2)
+        {
+            if(r < 180)
+            {
+                y1 = y;
+                y2 = y + h;
+            }
+            else
+            {
+                y1 = y + h;
+                y2 = y;
+            }
+            x1 = cx - ((cy - y1)/tanRadians);
+            x2 = cx - ((cy - y2)/tanRadians); 
+        }
+        else
+        {
+            if(r > 90 && r < 270)
+            {
+                x1 = x + w;
+                x2 = x;
+            }
+            else
+            {
+                x1 = x;
+                x2 = x + w;
+            }
+            y1 = ((tanRadians * (cx - x1)) - cy) * -1;
+            y2 = ((tanRadians * (cx - x2)) - cy) * -1;
+        }
+        gradient = this._context.createLinearGradient(x1, y1, x2, y2);
+        for(; i < len; ++i)
+        {
+            stop = stops[i];
+            opacity = stop.opacity;
+            color = stop.color;
+            offset = stop.offset;
+            if(isNumber(opacity))
+            {
+                opacity = Math.max(0, Math.min(1, opacity));
+                color = this._2RGBA(color, opacity);
+            }
+            else
+            {
+                color = this._2RGB(color);
+            }
+            offset = stop.offset || i/(len - 1);
+            gradient.addColorStop(offset, color);
+        }
+        return gradient;
+    },
+
+    /**
+     * Returns a radial gradient fill
+     *
+     * @method _getRadialGradient
+     * @private
+     */
+    _getRadialGradient: function() {
+        var isNumber = Y.Lang.isNumber,
+            fill = this.get("fill"),
+            r = fill.r,
+            fx = fill.fx,
+            fy = fill.fy,
+            stops = fill.stops,
+            opacity,
+            color,
+            stop,
+            i = 0,
+            len = stops.length,
+            gradient,
+            x = 0,
+            y = 0,
+            w = this.get("width"),
+            h = this.get("height"),
+            x1, x2, y1, y2, r2, 
+            xc, yc, xn, yn, d, 
+            offset,
+            ratio,
+            stopMultiplier;
+        xc = x + w/2;
+        yc = y + h/2;
+        x1 = w * fx;
+        y1 = h * fy;
+        x2 = x + w/2;
+        y2 = y + h/2;
+        r2 = w * r;
+        d = Math.sqrt( Math.pow(Math.abs(xc - x1), 2) + Math.pow(Math.abs(yc - y1), 2) );
+        if(d >= r2)
+        {
+            ratio = d/r2;
+            //hack. gradient won't show if it is exactly on the edge of the arc
+            if(ratio === 1)
+            {
+                ratio = 1.01;
+            }
+            xn = (x1 - xc)/ratio;
+            yn = (y1 - yc)/ratio;
+            xn = xn > 0 ? Math.floor(xn) : Math.ceil(xn);
+            yn = yn > 0 ? Math.floor(yn) : Math.ceil(yn);
+            x1 = xc + xn;
+            y1 = yc + yn;
+        }
+        
+        //If the gradient radius is greater than the circle's, adjusting the radius stretches the gradient properly.
+        //If the gradient radius is less than the circle's, adjusting the radius of the gradient will not work. 
+        //Instead, adjust the color stops to reflect the smaller radius.
+        if(r >= 0.5)
+        {
+            gradient = this._context.createRadialGradient(x1, y1, r, x2, y2, r * w);
+            stopMultiplier = 1;
+        }
+        else
+        {
+            gradient = this._context.createRadialGradient(x1, y1, r, x2, y2, w/2);
+            stopMultiplier = r * 2;
+        }
+        for(; i < len; ++i)
+        {
+            stop = stops[i];
+            opacity = stop.opacity;
+            color = stop.color;
+            offset = stop.offset;
+            if(isNumber(opacity))
+            {
+                opacity = Math.max(0, Math.min(1, opacity));
+                color = this._2RGBA(color, opacity);
+            }
+            else
+            {
+                color = this._2RGB(color);
+            }
+            offset = stop.offset || i/(len - 1);
+            offset *= stopMultiplier;
+            if(offset <= 1)
+            {
+                gradient.addColorStop(offset, color);
+            }
+        }
+        return gradient;
+    },
+
+
+    /**
      * Clears all values
      *
      * @method _initProps
      * @private
      */
     _initProps: function() {
-        var context = this._context;
         this._methods = [];
         this._lineToMethods = [];
         this._xcoords = [0];

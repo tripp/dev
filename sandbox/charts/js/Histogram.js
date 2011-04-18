@@ -16,18 +16,18 @@ Histogram.prototype = {
      */
     drawSeries: function()
     {
-        if(this.get("xcoords").length < 1) 
+        if(this.xplots.length < 1) 
         {
             return;
         }
         var style = Y.clone(this.get("styles").marker),
             setSize,
             calculatedSize,
-            xcoords = this.get("xcoords"),
-            ycoords = this.get("ycoords"),
+            xplots = this.xplots,
+            yplots = this.yplots,
             i = 0,
-            len = xcoords.length,
-            top = ycoords[0],
+            len = xplots.length,
+            top = yplots[0],
             type = this.get("type"),
             graph = this.get("graph"),
             seriesCollection = graph.seriesTypes[type],
@@ -94,7 +94,7 @@ Histogram.prototype = {
         offset -= seriesSize/2;
         for(i = 0; i < len; ++i)
         {
-            config = this._getMarkerDimensions(xcoords[i], ycoords[i], calculatedSize, offset);
+            config = this._getMarkerDimensions(xplots[i], yplots[i], calculatedSize, offset);
             top = config.top;
             calculatedSize = config.calculatedSize;
             left = config.left;

@@ -9,7 +9,24 @@
      * @readOnly
      * @type String
      */
-    _type: "oval"
+    _type: "oval",
+    
+    /**
+     * Adds change listeners to the shape.
+     *
+     * @private
+     * @method _addListeners
+     */
+    _addListeners: function()
+    {
+        this.after("initializedChange", this._updateHandler);
+        this.after("transformAdded", this._updateHandler);
+        this.after("strokeChange", this._updateHandler);
+        this.after("fillChange", this._updateHandler);
+        this.after("radiusChange", this._updateHandler);
+        this.after("xChange", this._updateHandler);
+        this.after("yChange", this._updateHandler);
+    }
  }, {
     ATTRS: {
         /**
@@ -21,16 +38,7 @@
         radius: {
             lazyAdd: false,
 
-            value: 0,
-
-            setter: function(val)
-            {
-                var node = this.get("node"),
-                    size = val * 2;
-                node.style.width = size + "px";
-                node.style.height = size + "px";
-                return val;
-            }
+            value: 0
         },
 
         /**

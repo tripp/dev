@@ -10,6 +10,13 @@ function Graphic(config) {
 }
 
 Graphic.prototype = {
+    getXY: function()
+    {
+        var parentNode = Y.one(this.node.parentNode),
+            parentXY = parentNode.getXY();
+        return parentXY;
+    },
+
     /**
      * Indicates whether or not the instance will size itself based on its contents.
      *
@@ -28,9 +35,13 @@ Graphic.prototype = {
         config = config || {};
         var w = config.width || 0,
             h = config.height || 0;
+        this._gradients = {};
         this.id = Y.guid();
-        this.node = this._createGraphics();
-        this.node.setAttribute("id", this.id);
+        this.node = Y.config.doc.createElement('div');
+        this.node.style.position = "absolute";
+        this.group = this._createGraphics();
+        this.group.setAttribute("id", this.id);
+        this.node.appendChild(this.group);
         this.setSize(w, h);
         if(config.render)
         {
@@ -119,7 +130,7 @@ Graphic.prototype = {
         {
             while(this._graphicsList.length > 0)
             {
-                this.node.removeChild(this._graphicsList.shift());
+                this.group.removeChild(this._graphicsList.shift());
             }
         }
     },
@@ -136,11 +147,11 @@ Graphic.prototype = {
         {
             if(w > this.node.getAttribute("width"))
             {
-                this.node.setAttribute("width",  w);
+                this.group.setAttribute("width",  w);
             }
-            if(h > this.node.getAttribute("height"))
+            if(h > this.group.getAttribute("height"))
             {
-                this.node.setAttribute("height", h);
+                this.group.setAttribute("height", h);
             }
         }
     },
@@ -233,7 +244,7 @@ Graphic.prototype = {
     {
         var node = document.createElementNS("http://www.w3.org/2000/svg", "svg:" + type),
             v = pe || "none";
-        if(type !== "defs" && type !== "stop" && type !== "linearGradient")
+        if(type !== "defs" && type !== "stop" && type !== "linearGradient" && type != "radialGradient")
         {
             node.setAttribute("pointer-events", v);
         }
@@ -249,8 +260,7 @@ Graphic.prototype = {
     addShape: function(shape)
     {
         var node = shape.get("node");
-        shape.set("graphic", this);
-        this.node.appendChild(node);
+        this.group.appendChild(node);
         if(!this._graphicsList)
         {
             this._graphicsList = [];
@@ -261,6 +271,7 @@ Graphic.prototype = {
         }
         this._graphicsList.push(node);
         this._shapes[shape.get("id")] = shape;
+        shape.set("graphic", this);
         this.updateCoordSpace();
     },
 
@@ -303,22 +314,75 @@ Graphic.prototype = {
         }
         this._width = this._right - this._left;
         this._height = this._bottom - this._top;
-        this.node.setAttribute("width", this._width);
-        this.node.setAttribute("height", this._height);
         this.node.style.width = this._width + "px";
         this.node.style.height = this._height + "px";
         this.node.style.left = this._left + "px";
         this.node.style.top = this._top + "px";
-        this.node.setAttribute("viewBox", "" + this._left + " " + this._top + " " + this._width + " " + this._height + "");
+        this.group.setAttribute("width", this._width);
+        this.group.setAttribute("height", this._height);
+        this.group.style.width = this._width + "px";
+        this.group.style.height = this._height + "px";
+        this.group.setAttribute("viewBox", "" + this._left + " " + this._top + " " + this._width + " " + this._height + "");
     },
 
+
+    /**
+     * @private
+     */
     _left: 0,
 
+    /**
+     * @private
+     */
     _right: 0,
 
+    /**
+     * @private
+     */
     _top: 0,
 
-    _bottom: 0
+    /**
+     * @private
+     */
+    _bottom: 0,
+
+    /**
+     * Returns a reference to a gradient definition based on an id and type.
+     *
+     * @method getGradientNode
+     * @key {String} id that references the gradient definition
+     * @type {String} description of the gradient type
+     * @return HTMLElement
+     */
+    getGradientNode: function(key, type)
+    {
+        var gradients = this._gradients,
+            gradient,
+            nodeType = type + "Gradient";
+        if(gradients.hasOwnProperty(key) && gradients[key].tagName.indexOf(type) > -1)
+        {
+            gradient = this._gradients[key];
+        }
+        else
+        {
+            gradient = this._createGraphicNode(nodeType);
+            if(!this._defs)
+            {
+                this._defs = this._createGraphicNode("defs");
+                this.group.appendChild(this._defs);
+            }
+            this._defs.appendChild(gradient);
+            key = key || "gradient" + Math.round(100000 * Math.random());
+            gradient.setAttribute("id", key);
+            if(gradients.hasOwnProperty(key))
+            {
+                this._defs.removeChild(gradients[key]);
+            }
+            gradients[key] = gradient;
+        }
+        return gradient;
+    }
+
 };
 Y.Graphic = Graphic;
 

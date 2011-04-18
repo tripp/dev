@@ -189,7 +189,8 @@ Y.CartesianSeries = Y.Base.create("cartesianSeries", Y.Base, [Y.Renderer], {
      */
     setAreaData: function()
     {
-        var nextX, nextY,
+        var isNumber = Y.Lang.isNumber,
+            nextX, nextY,
             graph = this.get("graph"),
             w = graph.get("width"),
             h = graph.get("height"),
@@ -197,52 +198,175 @@ Y.CartesianSeries = Y.Base.create("cartesianSeries", Y.Base, [Y.Renderer], {
             yAxis = this.get("yAxis"),
             xData = this.get("xData").concat(),
             yData = this.get("yData").concat(),
-            xOffset = xAxis.getEdgeOffset(xData.length, w),
-            yOffset = yAxis.getEdgeOffset(yData.length, h),
+            xValue,
+            yValue,
+            xOffset,
+            yOffset,
+            masterData,
+            masterMax,
+            masterMin,
+            startIndex,
+            endIndex,
             padding = this.get("styles").padding,
-			leftPadding = padding.left,
-			topPadding = padding.top,
-			dataWidth = w - (leftPadding + padding.right + xOffset),
-			dataHeight = h - (topPadding + padding.bottom + yOffset),
-			xcoords = [],
-			ycoords = [],
+            leftPadding = padding.left,
+            topPadding = padding.top,
+            xcoords = [],
+            ycoords = [],
+            xplots = [],
+            yplots = [],
 			xMax = xAxis.get("maximum"),
 			xMin = xAxis.get("minimum"),
 			yMax = yAxis.get("maximum"),
 			yMin = yAxis.get("minimum"),
-            xScaleFactor = dataWidth / (xMax - xMin),
-			yScaleFactor = dataHeight / (yMax - yMin),
+            range,
+            dataWidth,
+            dataHeight,
+            xScaleFactor,
+            yScaleFactor,
             dataLength,
             direction = this.get("direction"),
             i = 0,
+            x1, 
+            y1, 
+            x2, 
+            y2, 
+            x3, 
+            y3,
             xMarkerPlane = [],
             yMarkerPlane = [],
             xMarkerPlaneOffset = this.get("xMarkerPlaneOffset"),
             yMarkerPlaneOffset = this.get("yMarkerPlaneOffset"),
             graphic = this.get("graphic");
-        dataLength = xData.length;
-        xOffset *= 0.5;
-        yOffset *= 0.5;
-        //Assuming a vertical graph has a range/category for its vertical axis.    
-        if(direction === "vertical")
-        {
-            yData = yData.reverse();
-        }
         if(graphic)
         {
             graphic.setSize(w, h);
         }
-        this._leftOrigin = Math.round(((0 - xMin) * xScaleFactor) + leftPadding + xOffset);
-        this._bottomOrigin =  Math.round((dataHeight + topPadding + yOffset) - (0 - yMin) * yScaleFactor);
-        for (; i < dataLength; ++i) 
-		{
-            nextX = Math.round((((xData[i] - xMin) * xScaleFactor) + leftPadding + xOffset));
-			nextY = Math.round(((dataHeight + topPadding + yOffset) - (yData[i] - yMin) * yScaleFactor));
+        //Assuming a vertical graph has a range/category for its vertical axis.    
+        if(direction === "vertical")
+        {
+            dataLength = yData.length;
+            yData = yData.reverse();
+            masterData = yData;
+            masterMax = yMax;
+            masterMin = yMin;
+        }
+        else
+        {
+            dataLength = xData.length;
+            masterData = xData;
+            masterMax = xMax;
+            masterMin = xMin;
+        }
+        
+        //Set the start index for the series based on the master axis' minimum.
+        for(; i < dataLength; ++i)
+        {
+            if(masterData[i] >= masterMin)
+            {
+                startIndex = i;
+                break;
+            }
+        }
+         
+        //Set the end index for the series based on the master axis' maximum.
+        for(i = dataLength; i > -1; --i)
+        {
+            if(masterData[i] <= masterMax)
+            {
+                endIndex = i;
+                break;
+            }
+        }
+        
+        range = endIndex - startIndex;
+        xOffset = xAxis.getEdgeOffset(range, w);
+        yOffset = yAxis.getEdgeOffset(range, h);
+        dataWidth = w - (leftPadding + padding.right + xOffset);
+        dataHeight = h - (topPadding + padding.bottom + yOffset);
+        xScaleFactor = dataWidth / (xMax - xMin);
+        yScaleFactor = dataHeight / (yMax - yMin);
+        
+        xOffset *= 0.5;
+        yOffset *= 0.5;
+        this._leftOrigin = leftPadding + xOffset;
+        this._leftOrigin = Math.round( Math.max(this._leftOrigin, this._leftOrigin - (xMin * xScaleFactor)));
+        this._bottomOrigin = dataHeight + topPadding + yOffset;
+        this._bottomOrigin =  Math.round(Math.min(this._bottomOrigin, this._bottomOrigin + (yMin * yScaleFactor)));
+        for (i = startIndex; i <= endIndex; ++i) 
+        {
+            xValue = parseFloat(xData[i]);
+            yValue = parseFloat(yData[i]);
+            if(isNumber(xValue))
+            {
+                nextX = Math.round((((xValue - xMin) * xScaleFactor) + leftPadding + xOffset));
+            }
+            else
+            {
+                nextX = NaN;
+            }
+            if(isNumber(yValue))
+            {
+                nextY = Math.round(((dataHeight + topPadding + yOffset) - (yValue - yMin) * yScaleFactor));
+            }
+            else
+            {
+                nextY = NaN;
+            }
             xcoords.push(nextX);
             ycoords.push(nextY);
+            xplots.push(nextX);
+            yplots.push(nextY);
             xMarkerPlane.push({start:nextX - xMarkerPlaneOffset, end: nextX + xMarkerPlaneOffset});
             yMarkerPlane.push({start:nextY - yMarkerPlaneOffset, end: nextY + yMarkerPlaneOffset});
         }
+        this.startIndex = startIndex;
+        this.endIndex = endIndex;
+        if(masterData[startIndex] > masterMin && startIndex > 0)
+        {
+            i = startIndex -1;
+            dataLength++;
+            if(direction == "vertical")
+            {
+                nextY = 0;
+                nextX = ((nextY - ycoords[i]) * (xcoords[startIndex] - xcoords[i])) / (ycoords[startIndex] - ycoords[i]);
+            }
+            else
+            {
+                x1 = Math.round((((xData[i] - xMin) * xScaleFactor) + leftPadding + xOffset));
+                x2 = 0;
+                x3 = xcoords[0];
+                y1 = Math.round(((dataHeight + topPadding + yOffset) - (yData[i] - yMin) * yScaleFactor));
+                y3 = ycoords[0];
+                nextX = 0;
+                nextY = (((x2 - x1) * (y3 - y1)) / (x3 - x1)) + y1;
+            }
+            xcoords.unshift(nextX);
+            ycoords.unshift(nextY);
+        }
+        if(masterData[endIndex] < masterMax && endIndex < dataLength - 1)
+        {
+            i = endIndex + 1;
+            if(direction == "vertical")
+            {
+                nextY = h;
+                nextX = ((nextY - ycoords[endIndex]) * (xcoords[i] - xcoords[endIndex])) / (ycoords[i] - ycoords[endIndex]);
+            }
+            else
+            {
+                x1 = xcoords[xcoords.length - 1];
+                x2 = w;
+                x3 = Math.round((((xData[i] - xMin) * xScaleFactor) + leftPadding + xOffset));
+                y1 = ycoords[ycoords.length - 1];
+                y3 = Math.round(((dataHeight + topPadding + yOffset) - (yData[i] - yMin) * yScaleFactor));
+                nextX = w;
+                nextY = (((x2 - x1) * (y3 - y1)) / (x3 - x1)) + y1;
+            }
+            xcoords.push(nextX);
+            ycoords.push(nextY);
+        }
+        
+        this.xplots = xplots;
+        this.yplots = yplots;
         this.set("xcoords", xcoords);
 		this.set("ycoords", ycoords);
         this.set("xMarkerPlane", xMarkerPlane);
